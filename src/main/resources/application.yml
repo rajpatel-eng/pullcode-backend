@@ -14,16 +14,66 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
 
+  # ── Redis ───────────────────────────────────────────────────
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms 
+
+  # ── Gmail SMTP ──────────────────────────────────────────────
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: smartattendanceprojectteam@gmail.com     
+    password: fyhbnkrhgwpceuin
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+        debug: false                     
+
+  # ── OAuth2 ──────────────────────────────────────────────────
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:your-google-client-secret}
+            redirect-uri: "{baseUrl}/oauth2/callback/{registrationId}"
+            scope: email, profile
+          github:
+            client-id: ${GITHUB_CLIENT_ID:your-github-client-id}
+            client-secret: ${GITHUB_CLIENT_SECRET:your-github-client-secret}
+            redirect-uri: "{baseUrl}/oauth2/callback/{registrationId}"
+            scope: user:email, read:user
+
+# ── App Config ──────────────────────────────────────────────────
 app:
   jwt:
     secret: ${JWT_SECRET:your-super-secret-jwt-key-must-be-at-least-256-bits-long-for-hs256}
     access-token-expiration-ms: 900000        # 15 minutes
     refresh-token-expiration-ms: 604800000    # 7 days
 
+  otp:
+    expiry-minutes: 10                        # OTP expires in 10 minutes
+
+  oauth2:
+    authorized-redirect-uris:
+      - http://localhost:3000/oauth2/redirect
+      - http://localhost:8080/oauth2/redirect
+
+# ── Server ──────────────────────────────────────────────────────
 server:
   port: 8080
 
+# ── Logging ─────────────────────────────────────────────────────
 logging:
   level:
     org.springframework.security: DEBUG
     com.capstoneproject: DEBUG
+    org.springframework.mail: DEBUG           # debug email sending

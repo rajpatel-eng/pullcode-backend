@@ -49,6 +49,10 @@ public class User {
     @Enumerated(EnumType.STRING)
     private AuthProvider authProvider;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean emailVerified = false; 
+
     @Builder.Default
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles")

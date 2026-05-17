@@ -7,9 +7,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.capstoneproject.codereviewsystem.dtos.AuthRequest;
+import com.capstoneproject.codereviewsystem.dtos.OtpResponse;
 import com.capstoneproject.codereviewsystem.security.CurrentUser;
 import com.capstoneproject.codereviewsystem.security.UserPrincipal;
-import com.capstoneproject.codereviewsystem.services.AuthService;
+import com.capstoneproject.codereviewsystem.services.auth.AuthService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,12 @@ import lombok.RequiredArgsConstructor;
 public class AuthController {
 
     private final AuthService authService;
+
+    @PostMapping("/send-otp")
+    public ResponseEntity<OtpResponse> sendOtp(
+            @Valid @RequestBody AuthRequest.SendOtp req) {
+        return ResponseEntity.ok(authService.sendOtp(req.getEmail()));
+    }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody AuthRequest.Register req) {
@@ -34,18 +41,6 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(@Valid @RequestBody AuthRequest.RefreshTokenRequest req) {
         return ResponseEntity.ok(authService.refreshToken(req.getRefreshToken()));
-    }
-
-    @PostMapping("/forgot-password")
-    public ResponseEntity<?> forgotPassword(@Valid @RequestBody AuthRequest.ForgotPassword req) {
-        authService.forgotPassword(req.getEmail());
-        return ResponseEntity.ok("Reset link sent to your email");
-    }
-
-    @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@Valid @RequestBody AuthRequest.ResetPassword req) {
-        authService.resetPassword(req.getToken(), req.getNewPassword());
-        return ResponseEntity.ok("Password reset successfully");
     }
 
     @PostMapping("/logout")
