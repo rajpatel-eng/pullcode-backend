@@ -2,30 +2,28 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/code_review_db
     username: root
-    password: raj@patel@23
+    password: 'raj@patel@23'
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: false
+    open-in-view: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
 
-  # ── Redis ───────────────────────────────────────────────────
   data:
     redis:
       host: localhost
       port: 6379
-      timeout: 2000ms 
+      timeout: 2000ms
 
-  # ── Gmail SMTP ──────────────────────────────────────────────
   mail:
     host: smtp.gmail.com
     port: 587
-    username: smartattendanceprojectteam@gmail.com     
+    username: smartattendanceprojectteam@gmail.com
     password: fyhbnkrhgwpceuin
     properties:
       mail:
@@ -34,46 +32,49 @@ spring:
           starttls:
             enable: true
             required: true
-        debug: false                     
+        debug: false
 
-  # ── OAuth2 ──────────────────────────────────────────────────
-  security:
+  security:                        # ← 2 spaces indent under spring
     oauth2:
       client:
         registration:
-          google:
-            client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
-            client-secret: ${GOOGLE_CLIENT_SECRET:your-google-client-secret}
-            redirect-uri: "{baseUrl}/oauth2/callback/{registrationId}"
-            scope: email, profile
-          github:
-            client-id: ${GITHUB_CLIENT_ID:your-github-client-id}
-            client-secret: ${GITHUB_CLIENT_SECRET:your-github-client-secret}
-            redirect-uri: "{baseUrl}/oauth2/callback/{registrationId}"
-            scope: user:email, read:user
 
-# ── App Config ──────────────────────────────────────────────────
+          google:
+            client-id: 766656698734-31frh31tfr9sgn12igvlhbvu3p958hsl.apps.googleusercontent.com
+            client-secret: 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
+            redirect-uri: "http://localhost:8080/oauth2/callback/google"
+            scope:
+              - email
+              - profile
+
+          github:
+            client-id: Ov23liUxzT5OUh9VHjzr
+            client-secret: 10e96e59ca12b4518bf9a0c8d7d639bd431e93bb
+            redirect-uri: "http://localhost:8080/oauth2/callback/github"
+            scope:
+              - user:email
+              - read:user
+
+        provider:
+          github:
+            authorization-uri: https://github.com/login/oauth/authorize
+            token-uri: https://github.com/login/oauth/access_token
+            user-info-uri: https://api.github.com/user
+            user-name-attribute: id
+
 app:
   jwt:
-    secret: ${JWT_SECRET:your-super-secret-jwt-key-must-be-at-least-256-bits-long-for-hs256}
-    access-token-expiration-ms: 900000        # 15 minutes
-    refresh-token-expiration-ms: 604800000    # 7 days
+    secret: 7fd92bc0cbe4b9fbc4f93f5a0e73fef9cbe2f9f0b4a5f2f0cbb912345678abcd
+    access-token-expiration-ms: 900000
+    refresh-token-expiration-ms: 604800000
 
   otp:
-    expiry-minutes: 10                        # OTP expires in 10 minutes
+    expiry-minutes: 10
 
-  oauth2:
-    authorized-redirect-uris:
-      - http://localhost:3000/oauth2/redirect
-      - http://localhost:8080/oauth2/redirect
-
-# ── Server ──────────────────────────────────────────────────────
 server:
   port: 8080
 
-# ── Logging ─────────────────────────────────────────────────────
 logging:
   level:
     org.springframework.security: DEBUG
     com.capstoneproject: DEBUG
-    org.springframework.mail: DEBUG           # debug email sending

@@ -1,5 +1,7 @@
 package com.capstoneproject.codereviewsystem.configs;
 
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -7,15 +9,22 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.capstoneproject.codereviewsystem.security.JwtAuthenticationEntryPoint;
 import com.capstoneproject.codereviewsystem.security.JwtAuthenticationFilter;
-// import com.capstoneproject.codereviewsystem.security.UserDetailsServiceImpl;
-import org.springframework.security.config.http.SessionCreationPolicy;
+import com.capstoneproject.codereviewsystem.security.oauth2.CustomOAuth2UserService;
+import com.capstoneproject.codereviewsystem.security.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
+import com.capstoneproject.codereviewsystem.security.oauth2.OAuth2AuthenticationFailureHandler;
+import com.capstoneproject.codereviewsystem.security.oauth2.OAuth2AuthenticationSuccessHandler;
+
 import lombok.RequiredArgsConstructor;
 
 @Configuration
@@ -25,8 +34,13 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
-    // private final UserDetailsServiceImpl userDetailsService;
     private final JwtAuthenticationEntryPoint entryPoint;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2AuthenticationSuccessHandler successHandler;
+    private final OAuth2AuthenticationFailureHandler failureHandler;
+    private final HttpCookieOAuth2AuthorizationRequestRepository cookieRepo;
+
+    // ← NO ClientRegistrationRepository here — Spring Boot auto-configures it
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -41,15 +55,49 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http    
-                .cors(cors -> cors.configure(http))
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**","/error").permitAll()
-                        .anyRequest().authenticated())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        http
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(
+                        "/api/auth/**",
+                        "/oauth2/**",
+                        "/login/oauth2/**",
+                        "/login-success",      // ← add this
+                        "/error"
+                        ).permitAll()
+                        .anyRequest().authenticated()
+                )
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            .oauth2Login(oauth2 -> oauth2
+                .authorizationEndpoint(e -> e
+                    .baseUri("/oauth2/authorize")
+                    .authorizationRequestRepository(cookieRepo))
+                .redirectionEndpoint(e -> e
+                    .baseUri("/oauth2/callback/*"))
+                .userInfoEndpoint(e -> e
+                    .userService(customOAuth2UserService))
+                .successHandler(successHandler)
+                .failureHandler(failureHandler)
+            );
+
         return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", source.getCorsConfigurations().isEmpty()
+                ? config : config);
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 }

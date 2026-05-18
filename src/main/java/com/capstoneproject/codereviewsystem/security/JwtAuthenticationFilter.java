@@ -9,13 +9,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import io.jsonwebtoken.io.IOException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import java.io.IOException;
 
 @Slf4j
 @Component
@@ -26,9 +27,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final UserDetailsService userDetailsService;
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getServletPath();
+        return path.startsWith("/api/auth/") || path.startsWith("/oauth2/");
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request,
             HttpServletResponse response,
-            FilterChain chain) throws ServletException, IOException, java.io.IOException {
+            FilterChain chain) throws ServletException, IOException {
         try {
             String jwt = extractToken(request);
             if (jwt != null && jwtTokenProvider.validateToken(jwt)) {

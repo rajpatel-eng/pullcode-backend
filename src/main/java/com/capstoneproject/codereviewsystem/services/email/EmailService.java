@@ -1,6 +1,5 @@
 package com.capstoneproject.codereviewsystem.services.email;
 
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -20,13 +19,18 @@ public class EmailService {
     private String fromEmail;
 
     public void sendEmail(String toEmail, String subject, String body) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(fromEmail);
-        message.setTo(toEmail);
-        message.setSubject(subject);
-        message.setText(body);
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(toEmail);
+            message.setSubject(subject);
+            message.setText(body);
 
-        mailSender.send(message);
-        log.info("Email sent to: {} | subject: {}", toEmail, subject);
+            mailSender.send(message);
+            log.info("✅ Email sent to: {} | subject: {}", toEmail, subject);
+
+        } catch (Exception e) {
+            log.error("❌ Email failed to: {} | error: {}", toEmail, e.getMessage());
+        }
     }
 }
