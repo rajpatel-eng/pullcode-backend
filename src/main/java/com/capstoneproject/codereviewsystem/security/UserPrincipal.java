@@ -20,7 +20,7 @@ import lombok.Setter;
 @Getter
 @Builder
 @AllArgsConstructor
-public class UserPrincipal implements UserDetails, OAuth2User { // ← add OAuth2User
+public class UserPrincipal implements UserDetails, OAuth2User {
 
     private Long id;
     private String name;

@@ -1,5 +1,6 @@
 package com.capstoneproject.codereviewsystem.security;
 
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -19,7 +20,13 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+
+        if (!user.isEmailVerified()) {
+            throw new BadCredentialsException(
+                    "Email not verified. Please verify your email before logging in.");
+        }
+
         return UserPrincipal.create(user);
     }
 }

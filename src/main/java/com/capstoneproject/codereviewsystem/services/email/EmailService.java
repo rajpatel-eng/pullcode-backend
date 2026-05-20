@@ -27,10 +27,10 @@ public class EmailService {
             message.setText(body);
 
             mailSender.send(message);
-            log.info("✅ Email sent to: {} | subject: {}", toEmail, subject);
+            log.info("Email sent to: {} | subject: {}", toEmail, subject);
 
         } catch (Exception e) {
-            log.error("❌ Email failed to: {} | error: {}", toEmail, e.getMessage());
+            log.error("Email failed to: {} | error: {}", toEmail, e.getMessage());
         }
     }
 }

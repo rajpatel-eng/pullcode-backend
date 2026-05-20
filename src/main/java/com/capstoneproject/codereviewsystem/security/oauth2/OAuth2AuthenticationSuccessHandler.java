@@ -7,6 +7,7 @@ import com.capstoneproject.codereviewsystem.repos.UserRepository;
 import com.capstoneproject.codereviewsystem.security.JwtTokenProvider;
 import com.capstoneproject.codereviewsystem.security.UserPrincipal;
 
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -17,7 +18,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -36,8 +36,8 @@ public class OAuth2AuthenticationSuccessHandler
     @Value("${app.jwt.refresh-token-expiration-ms}")
     private long refreshTokenDurationMs;
 
-    // Change this to your frontend URL when you have one
-    private static final String REDIRECT_URI = "http://localhost:8080/login-success";
+    @Value("${app.jwt.access-token-expiration-ms}")
+    private long accessTokenExpirationMs;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
@@ -49,17 +49,24 @@ public class OAuth2AuthenticationSuccessHandler
         String accessToken = jwtTokenProvider.generateTokenFromEmail(userPrincipal.getEmail());
         RefreshToken refreshToken = createRefreshToken(userPrincipal.getId());
 
-        String targetUrl = UriComponentsBuilder
-                .fromUriString(REDIRECT_URI)
-                .queryParam("token", accessToken)
-                .queryParam("refreshToken", refreshToken.getToken())
-                .build()
-                .toUriString();
+        Cookie accessTokenCookie = new Cookie("accessToken", accessToken);
+        accessTokenCookie.setHttpOnly(true);
+        accessTokenCookie.setPath("/");
+        accessTokenCookie.setMaxAge((int) (accessTokenExpirationMs / 1000)); // 15 min
+        response.addCookie(accessTokenCookie);
 
-        log.info("OAuth2 login success for: {}", userPrincipal.getEmail());
+        Cookie refreshTokenCookie = new Cookie("refreshToken", refreshToken.getToken());
+        refreshTokenCookie.setHttpOnly(true);
+        refreshTokenCookie.setPath("/");
+        refreshTokenCookie.setMaxAge((int) (refreshTokenDurationMs / 1000)); // 7 days
+        response.addCookie(refreshTokenCookie);
+
+        log.info("OAuth2 login success for: {} — tokens stored in cookies",
+                userPrincipal.getEmail());
 
         clearAuthenticationAttributes(request);
-        getRedirectStrategy().sendRedirect(request, response, targetUrl);
+
+        getRedirectStrategy().sendRedirect(request, response, "/api/user/profile");
     }
 
     private RefreshToken createRefreshToken(Long userId) {
