@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/repositories")
@@ -51,6 +52,16 @@ public class CodeRepositoryController {
             @CurrentUser UserPrincipal currentUser) {
         repoService.deleteRepository(id, currentUser.getId());
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/token")
+    public ResponseEntity<CodeRepositoryResponse> updateAccessToken(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body,
+            @CurrentUser UserPrincipal currentUser) {
+        String accessToken = body.getOrDefault("accessToken", "");
+        return ResponseEntity.ok(
+                repoService.updateAccessToken(id, accessToken, currentUser.getId()));
     }
 
     @GetMapping("/{id}/commits")

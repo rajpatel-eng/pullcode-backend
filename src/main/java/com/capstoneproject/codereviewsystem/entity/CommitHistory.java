@@ -55,6 +55,9 @@ public class CommitHistory {
     @Column(nullable = false)
     private LocalDateTime committedAt;
 
+    @Column
+    private String storagePath;
+
     @Column(nullable = false)
     private LocalDateTime receivedAt;
 

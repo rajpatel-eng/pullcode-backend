@@ -3,10 +3,7 @@ package com.capstoneproject.codereviewsystem.repos;
 import com.capstoneproject.codereviewsystem.entity.CodeRepository;
 import com.capstoneproject.codereviewsystem.entity.User;
 
-import io.lettuce.core.dynamic.annotation.Param;
-
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -21,7 +18,5 @@ public interface CodeRepositoryRepository extends JpaRepository<CodeRepository, 
 
     boolean existsByRepoUrlAndUser(String repoUrl, User user);
 
-    @Query("SELECT r FROM CodeRepository r WHERE :url LIKE CONCAT('%', r.repoUrl, '%') OR r.repoUrl LIKE CONCAT('%', :url, '%')")
-    Optional<CodeRepository> findByRepoUrlContaining(@Param("url") String url);
+    List<CodeRepository> findAllByRepoUrl(String repoUrl);
 }
-

@@ -65,6 +65,7 @@ public class SecurityConfig {
                     "/oauth2/**",
                     "/login/oauth2/**",
                     "/login-success",
+                    "/api/webhook/**",
                     "/error"
             ).permitAll()
             .requestMatchers("/api/admin/**").hasRole("ADMIN")

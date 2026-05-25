@@ -31,7 +31,7 @@ public class WebhookController {
 
         try {
             JsonNode root = objectMapper.readTree(payload);
-            webhookService.processGithubPush(root, signature);
+            webhookService.processGithubPush(root, signature, payload);
             return ResponseEntity.ok("Webhook processed");
         } catch (Exception e) {
             log.error("GitHub webhook failed: {}", e.getMessage());
@@ -42,6 +42,8 @@ public class WebhookController {
     @PostMapping("/gitlab")
     public ResponseEntity<String> gitlabWebhook(
             @RequestHeader(value = "X-Gitlab-Event", defaultValue = "") String event,
+            // FIX: extract GitLab secret token from header
+            @RequestHeader(value = "X-Gitlab-Token", defaultValue = "") String token,
             @RequestBody String payload) {
 
         log.info("GitLab webhook received | event: {}", event);
@@ -52,7 +54,7 @@ public class WebhookController {
 
         try {
             JsonNode root = objectMapper.readTree(payload);
-            webhookService.processGitlabPush(root);
+            webhookService.processGitlabPush(root, token);
             return ResponseEntity.ok("Webhook processed");
         } catch (Exception e) {
             log.error("GitLab webhook failed: {}", e.getMessage());

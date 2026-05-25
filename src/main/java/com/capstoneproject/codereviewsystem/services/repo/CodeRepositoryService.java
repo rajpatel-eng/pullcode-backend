@@ -42,6 +42,9 @@ public class CodeRepositoryService {
         }
 
         RepoProvider provider = detectProvider(request.getRepoUrl());
+        String webhookSecret = UUID.randomUUID().toString();
+
+        String webhookUrl = buildWebhookUrl(provider);
 
         CodeRepository repo = CodeRepository.builder()
                 .title(request.getTitle())
@@ -49,14 +52,41 @@ public class CodeRepositoryService {
                 .provider(provider)
                 .accessToken(request.getAccessToken())
                 .defaultBranch(request.getBranch() != null ? request.getBranch() : "main")
-                .webhookSecret(UUID.randomUUID().toString()) // generated, sent to GitHub
+                .webhookSecret(webhookSecret)
                 .user(user)
                 .build();
 
         repoRepository.save(repo);
         log.info("Repo added: {} by user: {}", request.getRepoUrl(), userId);
 
-        return toResponse(repo);
+        return CodeRepositoryResponse.builder()
+                .id(repo.getId())
+                .title(repo.getTitle())
+                .repoUrl(repo.getRepoUrl())
+                .provider(repo.getProvider())
+                .hasAccessToken(repo.getAccessToken() != null && !repo.getAccessToken().isBlank())
+                .webhookStatus("NOT_CONFIGURED")
+                .createdAt(repo.getCreatedAt())
+                .webhookSecret(webhookSecret)         
+                .webhookUrl(webhookUrl)              
+                .build();
+    }
+
+
+    @Transactional
+    public CodeRepositoryResponse updateAccessToken(Long repoId, String accessToken, Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+
+        CodeRepository repo = repoRepository.findByIdAndUser(repoId, user)
+                .orElseThrow(() -> new BadRequestException("Repository not found"));
+
+        String token = (accessToken != null && !accessToken.isBlank()) ? accessToken : null;
+        repo.setAccessToken(token);
+        repoRepository.save(repo);
+
+        log.info("Access token {} for repo: {}", token != null ? "updated" : "removed", repoId);
+        return toResponse(repo);  // does NOT expose webhookSecret
     }
 
     public List<CodeRepositoryResponse> getMyRepositories(Long userId) {
@@ -128,6 +158,7 @@ public class CodeRepositoryService {
                 .map(this::toCommitResponse);
     }
 
+
     private RepoProvider detectProvider(String repoUrl) {
         if (repoUrl.contains("github.com"))    return RepoProvider.GITHUB;
         if (repoUrl.contains("gitlab.com"))    return RepoProvider.GITLAB;
@@ -135,15 +166,27 @@ public class CodeRepositoryService {
         throw new BadRequestException("Unsupported provider. Use GitHub, GitLab, or Bitbucket.");
     }
 
+    private String buildWebhookUrl(RepoProvider provider) {
+        String base = "https://YOUR-PUBLIC-URL";
+        return switch (provider) {
+            case GITHUB    -> base + "/api/webhook/github";
+            case GITLAB    -> base + "/api/webhook/gitlab";
+            case BITBUCKET -> base + "/api/webhook/bitbucket";
+        };
+    }
+
+
     private CodeRepositoryResponse toResponse(CodeRepository repo) {
         return CodeRepositoryResponse.builder()
                 .id(repo.getId())
                 .title(repo.getTitle())
                 .repoUrl(repo.getRepoUrl())
                 .provider(repo.getProvider())
-                .hasAccessToken(repo.getAccessToken() != null)
+                .hasAccessToken(repo.getAccessToken() != null && !repo.getAccessToken().isBlank())
                 .webhookStatus(repo.getWebhookId() != null ? "ACTIVE" : "NOT_CONFIGURED")
                 .createdAt(repo.getCreatedAt())
+                // webhookSecret intentionally NOT set here
+                // webhookUrl intentionally NOT set here
                 .build();
     }
 

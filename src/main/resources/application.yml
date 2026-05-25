@@ -9,7 +9,7 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: false
-    open-in-view: false
+    open-in-view: true
     properties:
       hibernate:
         format_sql: true
@@ -67,6 +67,10 @@ app:
 
   otp:
     expiry-minutes: 10
+
+  # File storage path — files will be saved here
+  storage:
+    base-path: D:/codereviewsystem/uploads
 
 server:
   port: 8080

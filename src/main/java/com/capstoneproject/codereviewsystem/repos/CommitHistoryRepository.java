@@ -15,17 +15,19 @@ import java.util.Optional;
 @Repository
 public interface CommitHistoryRepository extends JpaRepository<CommitHistory, Long> {
 
-    Page<CommitHistory> findByRepositoryOrderByCommittedAtDesc(
-            CodeRepository repository, Pageable pageable);
+        Page<CommitHistory> findByRepositoryOrderByCommittedAtDesc(
+                        CodeRepository repository, Pageable pageable);
 
-    Page<CommitHistory> findByUserOrderByCommittedAtDesc(
-            User user, Pageable pageable);
+        Page<CommitHistory> findByUserOrderByCommittedAtDesc(
+                        User user, Pageable pageable);
 
-    Page<CommitHistory> findByRepositoryAndBranchOrderByCommittedAtDesc(
-            CodeRepository repository, String branch, Pageable pageable);
+        Page<CommitHistory> findByRepositoryAndBranchOrderByCommittedAtDesc(
+                        CodeRepository repository, String branch, Pageable pageable);
 
-    List<CommitHistory> findByReviewStatus(ReviewStatus status);
+        List<CommitHistory> findByReviewStatus(ReviewStatus status);
 
-    Optional<CommitHistory> findByCommitIdAndRepository(
-            String commitId, CodeRepository repository);
+        Optional<CommitHistory> findByCommitIdAndRepository(
+                        String commitId, CodeRepository repository);
+
+        Optional<CommitHistory> findTopByRepositoryOrderByReceivedAtDesc(CodeRepository repository);
 }

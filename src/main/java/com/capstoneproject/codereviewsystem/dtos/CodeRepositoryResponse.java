@@ -12,7 +12,9 @@ public class CodeRepositoryResponse {
     private String title;
     private String repoUrl;
     private RepoProvider provider;
-    private boolean hasAccessToken;  
+    private boolean hasAccessToken;
     private String webhookStatus;
     private LocalDateTime createdAt;
+    private String webhookSecret;
+    private String webhookUrl;
 }
