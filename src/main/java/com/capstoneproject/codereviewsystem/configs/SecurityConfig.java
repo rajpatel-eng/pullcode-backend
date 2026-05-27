@@ -40,7 +40,6 @@ public class SecurityConfig {
     private final OAuth2AuthenticationFailureHandler failureHandler;
     private final HttpCookieOAuth2AuthorizationRequestRepository cookieRepo;
 
-
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -60,17 +59,26 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint))
             .authorizeHttpRequests(auth -> auth
-            .requestMatchers(
-                    "/api/auth/**",
-                    "/oauth2/**",
-                    "/login/oauth2/**",
-                    "/login-success",
-                    "/api/webhook/**",
-                    "/error"
-            ).permitAll()
-            .requestMatchers("/api/admin/**").hasRole("ADMIN")
-            .requestMatchers("/api/user/**","/api/repositories","/api/zip/**").hasAnyRole("USER", "ADMIN")
-            .anyRequest().authenticated()
+                .requestMatchers(
+                        "/api/auth/**",
+                        "/oauth2/**",
+                        "/login/oauth2/**",
+                        "/login-success",
+                        "/api/webhook/**",
+                        "/api/cli/push",        
+                        "/api/cli/change-token", 
+                        "/api/cli/token-info",   
+                        "/api/cli/log",        
+                        "/error"
+                ).permitAll()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers(
+                        "/api/user/**",
+                        "/api/repositories",
+                        "/api/zip/**",
+                        "/api/cli/**"     
+                ).hasAnyRole("USER", "ADMIN")
+                .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .oauth2Login(oauth2 -> oauth2
@@ -97,8 +105,6 @@ public class SecurityConfig {
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", source.getCorsConfigurations().isEmpty()
-                ? config : config);
         source.registerCorsConfiguration("/**", config);
         return source;
     }
