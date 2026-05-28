@@ -52,19 +52,27 @@ public class CliController {
     }
 
 
+    @PatchMapping("/projects/{projectId}/tokens/{tokenId}/toggle")
+    public ResponseEntity<CliTokenResponse> toggleToken(
+            @PathVariable Long projectId,
+            @PathVariable Long tokenId,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+
+        return ResponseEntity.ok(cliTokenService.toggleTokenStatus(projectId, tokenId, currentUser.getId()));
+    }
+
     @PostMapping(value = "/push", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CliPushResponse> push(
             @RequestHeader("X-CLI-Token") String cliToken,
             @RequestParam("file") MultipartFile file,
             @RequestParam("commitMessage") String commitMessage,
             @RequestParam(value = "hostname", required = false) String hostname,
-            @RequestParam(value = "osUser",   required = false) String osUser) {
+            @RequestParam(value = "osUser", required = false) String osUser) {
 
         log.info("CLI push: file={} size={}", file.getOriginalFilename(), file.getSize());
         return ResponseEntity.status(201)
                 .body(cliPushService.push(cliToken, file, commitMessage, hostname, osUser));
     }
-
 
     @GetMapping("/projects/{projectId}/history")
     public ResponseEntity<ProjectCliHistoryResponse> getCliHistory(
@@ -72,15 +80,5 @@ public class CliController {
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
         return ResponseEntity.ok(cliPushService.getCliHistory(projectId, currentUser.getId()));
-    }
-
-
-    @PostMapping("/change-token")
-    public ResponseEntity<CliTokenResponse> changeToken(
-            @RequestHeader("X-CLI-Token") String newToken,
-            @RequestParam("projectId") Long projectId,
-            @RequestParam("userId")    Long userId) {
-
-        return ResponseEntity.ok(cliTokenService.rotateToken(projectId, userId, newToken));
     }
 }

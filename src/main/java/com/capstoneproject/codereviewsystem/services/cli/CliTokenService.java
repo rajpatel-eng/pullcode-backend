@@ -27,7 +27,6 @@ public class CliTokenService {
     private final UserRepository userRepository;
     private final ZipProjectRepository zipProjectRepository;
 
-   
     @Transactional
     public CliTokenResponse generateToken(Long projectId, Long userId, GenerateTokenRequest req) {
         User user = userRepository.findById(userId)
@@ -51,34 +50,11 @@ public class CliTokenService {
                 .build();
 
         cliToken = cliTokenRepository.save(cliToken);
-        log.info("CLI token generated: project={} user={} tokenId={}", projectId, userId, cliToken.getId());
+        log.info("CLI token generated: project={} user={} tokenId={} name={}",
+                projectId, userId, cliToken.getId(), tokenName);
 
         return toResponse(cliToken);
     }
-
-
-    @Transactional
-    public CliTokenResponse rotateToken(Long projectId, Long userId, String newTokenValue) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BadRequestException("User not found"));
-
-        ZipProject project = zipProjectRepository.findByIdAndUser(projectId, user)
-                .orElseThrow(() -> new BadRequestException("Project not found or access denied"));
-
-        CliToken newToken = cliTokenRepository.findByTokenAndActiveTrue(newTokenValue)
-                .orElseThrow(() -> new BadRequestException(
-                        "Token not found or already revoked. Generate a new token from the Project UI first."));
-
-        List<CliToken> oldTokens = cliTokenRepository.findByZipProjectAndUserAndActiveTrue(project, user);
-        oldTokens.stream()
-                .filter(t -> !t.getToken().equals(newTokenValue))
-                .forEach(t -> t.setActive(false));
-        cliTokenRepository.saveAll(oldTokens);
-
-        log.info("CLI token rotated: project={} user={} new tokenId={}", projectId, userId, newToken.getId());
-        return toResponse(newToken);
-    }
-
 
     @Transactional
     public void revokeToken(Long projectId, Long tokenId, Long userId) {
@@ -93,9 +69,28 @@ public class CliTokenService {
 
         token.setActive(false);
         cliTokenRepository.save(token);
-        log.info("CLI token revoked: tokenId={} project={}", tokenId, projectId);
+        log.info("CLI token revoked: tokenId={} name={} project={}", tokenId, token.getName(), projectId);
     }
 
+    @Transactional
+    public CliTokenResponse toggleTokenStatus(Long projectId, Long tokenId, Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+
+        ZipProject project = zipProjectRepository.findByIdAndUser(projectId, user)
+                .orElseThrow(() -> new BadRequestException("Project not found"));
+
+        CliToken token = cliTokenRepository.findByIdAndZipProjectAndUser(tokenId, project, user)
+                .orElseThrow(() -> new BadRequestException("Token not found"));
+
+        boolean newStatus = !token.isActive();
+        token.setActive(newStatus);
+        cliTokenRepository.save(token);
+        log.info("CLI token {}: tokenId={} name={} project={}",
+                newStatus ? "resumed" : "paused", tokenId, token.getName(), projectId);
+
+        return toResponse(token);
+    }
 
     public List<CliTokenResponse> getProjectTokens(Long projectId, Long userId) {
         User user = userRepository.findById(userId)
@@ -104,12 +99,11 @@ public class CliTokenService {
         ZipProject project = zipProjectRepository.findByIdAndUser(projectId, user)
                 .orElseThrow(() -> new BadRequestException("Project not found"));
 
-        return cliTokenRepository.findByZipProjectAndActiveTrueOrderByCreatedAtDesc(project)
+        return cliTokenRepository.findByZipProjectAndUserOrderByCreatedAtDesc(project, user)
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
-
 
     public record TokenValidationResult(CliToken token, User user, ZipProject project) {}
 
@@ -117,14 +111,13 @@ public class CliTokenService {
     public TokenValidationResult validateAndTouch(String rawToken) {
         CliToken token = cliTokenRepository.findByTokenAndActiveTrue(rawToken)
                 .orElseThrow(() -> new BadRequestException(
-                        "Invalid or revoked CLI token. Run: code-rakshak init -t <token>"));
+                        "Invalid, revoked, or paused CLI token. Run: code-rakshak init -t <token>"));
 
         token.setLastUsedAt(LocalDateTime.now());
         cliTokenRepository.save(token);
 
         return new TokenValidationResult(token, token.getUser(), token.getZipProject());
     }
-
 
     private CliTokenResponse toResponse(CliToken t) {
         return CliTokenResponse.builder()

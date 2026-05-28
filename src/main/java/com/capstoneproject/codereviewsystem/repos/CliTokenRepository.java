@@ -14,9 +14,9 @@ public interface CliTokenRepository extends JpaRepository<CliToken, Long> {
 
     Optional<CliToken> findByTokenAndActiveTrue(String token);
 
+    List<CliToken> findByZipProjectAndUserOrderByCreatedAtDesc(ZipProject project, User user);
+
     List<CliToken> findByZipProjectAndActiveTrueOrderByCreatedAtDesc(ZipProject project);
 
     Optional<CliToken> findByIdAndZipProjectAndUser(Long id, ZipProject project, User user);
-
-    List<CliToken> findByZipProjectAndUserAndActiveTrue(ZipProject project, User user);
 }

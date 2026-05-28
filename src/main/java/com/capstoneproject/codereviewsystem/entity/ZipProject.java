@@ -54,4 +54,13 @@ public class ZipProject {
     @OneToMany(mappedBy = "zipProject", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ZipUploadHistory> uploadHistories = new ArrayList<>();
+
+    @OneToMany(mappedBy = "zipProject", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<CliCommitHistory> cliCommitHistories = new ArrayList<>();
+ 
+    
+    @OneToMany(mappedBy = "zipProject", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<CliToken> cliTokens = new ArrayList<>();
 }

@@ -6,7 +6,6 @@ import java.util.List;
 
 public class CliDtos {
 
-
     @Data
     @Builder
     @NoArgsConstructor
@@ -21,15 +20,14 @@ public class CliDtos {
     @AllArgsConstructor
     public static class CliTokenResponse {
         private Long id;
-        private String token;       
-        private String name;
+        private String token;
+        private String name; 
         private Long projectId;
         private String projectTitle;
         private LocalDateTime createdAt;
         private LocalDateTime lastUsedAt;
-        private boolean active;
+        private boolean active; 
     }
-
 
     @Data
     @Builder
@@ -47,9 +45,9 @@ public class CliDtos {
         private String reviewStatus;
         private Long totalCommits;
         private LocalDateTime pushedAt;
-        private String message;       
+        private String message;
+        private String committedBy; 
     }
-
 
     @Data
     @Builder
@@ -62,6 +60,7 @@ public class CliDtos {
         private String originalFileName;
         private Long fileSizeBytes;
         private Integer totalFilesExtracted;
+        private String tokenName; 
         private String pusherHostname;
         private String pusherOsUser;
         private String reviewStatus;
