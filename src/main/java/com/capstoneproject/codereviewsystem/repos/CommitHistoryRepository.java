@@ -26,6 +26,8 @@ public interface CommitHistoryRepository extends JpaRepository<CommitHistory, Lo
 
         List<CommitHistory> findByReviewStatus(ReviewStatus status);
 
+        long countByUser(User user);
+        
         Optional<CommitHistory> findByCommitIdAndRepository(
                         String commitId, CodeRepository repository);
 

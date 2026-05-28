@@ -10,9 +10,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.capstoneproject.codereviewsystem.dtos.AuthRequest;
 import com.capstoneproject.codereviewsystem.dtos.OtpResponse;
+import com.capstoneproject.codereviewsystem.dtos.UserRequest;
 import com.capstoneproject.codereviewsystem.security.CurrentUser;
 import com.capstoneproject.codereviewsystem.security.UserPrincipal;
 import com.capstoneproject.codereviewsystem.services.auth.AuthService;
+import com.capstoneproject.codereviewsystem.services.user.UserService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 public class AuthController {
 
     private final AuthService authService;
+    private final UserService userService;
 
     @PostMapping("/send-otp")
     public ResponseEntity<OtpResponse> sendOtp(
@@ -53,5 +56,18 @@ public class AuthController {
     @GetMapping("/oauth2-error")
     public ResponseEntity<?> oauthError() {
         return ResponseEntity.ok("Errpr in oauth");
+    }
+
+    @PostMapping("/forgot-password/send-otp")
+    public ResponseEntity<OtpResponse> forgotPasswordSendOtp(
+            @Valid @RequestBody UserRequest.ForgotPasswordSendOtp req) {
+        return ResponseEntity.ok(userService.sendForgotPasswordOtp(req));
+    }
+
+    @PostMapping("/forgot-password/reset")
+    public ResponseEntity<?> forgotPasswordReset(
+            @Valid @RequestBody UserRequest.ForgotPasswordReset req) {
+        userService.resetPassword(req);
+        return ResponseEntity.ok("Password reset successfully. You can now log in.");
     }
 }

@@ -21,6 +21,7 @@ public class OtpService {
     private long otpExpiryMinutes;
 
     private static final String OTP_PREFIX = "OTP:";
+    private static final String FORGOT_OTP_PREFIX = "FORGOT_OTP:";
 
     public String generateAndStoreOtp(String email) {
         String otp = generateOtp();
@@ -68,5 +69,37 @@ public class OtpService {
     private String generateOtp() {
         int otp = 100000 + new SecureRandom().nextInt(900000); // 100000–999999
         return String.valueOf(otp);
+    }
+
+    
+    public String generateAndStoreForgotOtp(String email) {
+        String otp = generateOtp();
+        redisTemplate.opsForValue().set(
+            FORGOT_OTP_PREFIX + email,
+            otp,
+            otpExpiryMinutes,
+            TimeUnit.MINUTES
+        );
+        log.info("Forgot-password OTP stored for: {}", email);
+        return otp;
+    }
+
+    public boolean verifyForgotOtp(String email, String otp) {
+        String key = FORGOT_OTP_PREFIX + email;
+        String stored = redisTemplate.opsForValue().get(key);
+        if (stored == null) { log.warn("Forgot OTP not found/expired: {}", email); return false; }
+        if (!stored.equals(otp)) { log.warn("Wrong forgot OTP for: {}", email); return false; }
+        redisTemplate.delete(key);
+        log.info("Forgot OTP verified and removed for: {}", email);
+        return true;
+    }
+
+    public boolean hasActiveForgotOtp(String email) {
+        return Boolean.TRUE.equals(redisTemplate.hasKey(FORGOT_OTP_PREFIX + email));
+    }
+
+    public long getForgotOtpRemainingTtlSeconds(String email) {
+        Long ttl = redisTemplate.getExpire(FORGOT_OTP_PREFIX + email, TimeUnit.SECONDS);
+        return ttl != null ? ttl : 0;
     }
 }

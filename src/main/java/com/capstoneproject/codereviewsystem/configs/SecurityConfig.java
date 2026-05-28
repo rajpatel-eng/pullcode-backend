@@ -68,7 +68,8 @@ public class SecurityConfig {
                         "/api/cli/push",        
                         "/api/cli/change-token", 
                         "/api/cli/token-info",   
-                        "/api/cli/log",        
+                        "/api/cli/log", 
+                        "/avatars/**",       
                         "/error"
                 ).permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")

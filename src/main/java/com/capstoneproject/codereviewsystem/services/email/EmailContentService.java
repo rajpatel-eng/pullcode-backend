@@ -39,4 +39,39 @@ public class EmailContentService {
                 — Code Review System
                 """.formatted(name);
     }
+
+    public String forgotPasswordSubject() {
+        return "Reset Your Password - Code Review System";
+    }
+
+    public String forgotPasswordBody(String otp) {
+        return """
+                You requested a password reset for your Code Review System account.
+
+                Your OTP is: %s
+
+                Valid for 10 minutes.
+                Do not share this OTP with anyone.
+
+                If you did not request this, please ignore this email.
+
+                — Code Review System
+                """.formatted(otp);
+    }
+
+    public String passwordChangedSubject() {
+        return "Password Changed - Code Review System";
+    }
+
+    public String passwordChangedBody(String name) {
+        return """
+                Hi %s,
+
+                Your password has been successfully changed.
+
+                If you did not make this change, please contact support immediately.
+
+                — Code Review System
+                """.formatted(name);
+    }
 }

@@ -11,6 +11,5 @@ import com.capstoneproject.codereviewsystem.entity.User;
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
-    Optional<User> findByResetPasswordToken(String token); // for forgot password
 }
 

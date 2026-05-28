@@ -51,8 +51,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         User user = userRepository.findByEmail(userInfo.getEmail())
                 .map(existing -> {
-                    existing.setName(userInfo.getName());
-                    existing.setAvatarUrl(userInfo.getImageUrl());
                     return userRepository.save(existing);
                 })
                 .orElseGet(() -> userRepository.save(

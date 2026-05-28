@@ -1,6 +1,5 @@
 package com.capstoneproject.codereviewsystem.entity;
 
-import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -43,8 +42,6 @@ public class User {
 
     private String password;
     private String avatarUrl;
-    private String resetPasswordToken;
-    private LocalDateTime resetTokenExpiry;
 
     @Enumerated(EnumType.STRING)
     private AuthProvider authProvider;

@@ -23,34 +23,24 @@ public class GitProviderFileService {
     private final ObjectMapper objectMapper;
     private final FileStorageService fileStorageService;
 
-    /**
-     * Main entry point called from WebhookService (async).
-     *
-     * Strategy:
-     *  1. Delete the previous commit's folder for this repo (only one full snapshot kept).
-     *  2. Fetch the complete file tree at the new commitId from the provider API.
-     *  3. Save every file locally under uploads/webhook/{repoName}/{commitId}/
-     */
+
     public void fetchAndStoreFullProject(CodeRepository repo, String commitId,
                                          String previousCommitId) {
 
         String repoName = extractRepoName(repo.getRepoUrl());
 
-        // Step 1 — delete previous commit snapshot if it exists
         if (previousCommitId != null && !previousCommitId.isBlank()) {
             if (fileStorageService.submissionExists("webhook", repoName, previousCommitId)) {
                 fileStorageService.deleteSubmission("webhook", repoName, previousCommitId);
-                log.info("Deleted old snapshot: uploads/webhook/{}/{}", repoName, previousCommitId);
+                log.info("Deleted old snapshot: webhook/{}/{}", repoName, previousCommitId);
             }
         }
 
-        // Step 2 — skip if already stored (e.g. duplicate webhook delivery)
         if (fileStorageService.submissionExists("webhook", repoName, commitId)) {
             log.info("Snapshot already exists for commit: {}", commitId);
             return;
         }
 
-        // Step 3 — fetch all file paths from the provider tree API
         List<String> allFilePaths;
         try {
             allFilePaths = fetchAllFilePaths(repo, commitId);
@@ -66,7 +56,6 @@ public class GitProviderFileService {
 
         log.info("Fetching {} files for full snapshot of commit: {}", allFilePaths.size(), commitId);
 
-        // Step 4 — fetch and save each file
         int saved = 0;
         for (String filePath : allFilePaths) {
             try {
@@ -80,11 +69,10 @@ public class GitProviderFileService {
             }
         }
 
-        log.info("Full snapshot saved: {}/{} files at uploads/webhook/{}/{}",
+        log.info("Full snapshot saved: {}/{} files at webhook/{}/{}",
                 saved, allFilePaths.size(), repoName, commitId);
     }
 
-    // ─── Fetch all file paths from the provider's tree API ───────────────────
 
     private List<String> fetchAllFilePaths(CodeRepository repo, String commitId) {
         return switch (repo.getProvider()) {
@@ -112,7 +100,6 @@ public class GitProviderFileService {
             JsonNode root = objectMapper.readTree(response.getBody());
             JsonNode tree = root.path("tree");
             for (JsonNode node : tree) {
-                // type "blob" = file, "tree" = directory — skip directories
                 if ("blob".equals(node.path("type").asText())) {
                     paths.add(node.path("path").asText());
                 }
@@ -178,7 +165,6 @@ public class GitProviderFileService {
         return paths;
     }
 
-    /** Recursively walks Bitbucket directory listing pages */
     private void collectBitbucketPaths(String url, HttpHeaders headers,
                                         List<String> paths, String ownerRepo, String commitId) {
         try {
@@ -201,7 +187,6 @@ public class GitProviderFileService {
                     collectBitbucketPaths(subUrl, headers, paths, ownerRepo, commitId);
                 }
             }
-            // follow next page if present
             String next = root.path("next").asText(null);
             if (next != null && !next.isBlank()) {
                 collectBitbucketPaths(next, headers, paths, ownerRepo, commitId);
@@ -211,7 +196,6 @@ public class GitProviderFileService {
         }
     }
 
-    // ─── Fetch individual file content ───────────────────────────────────────
 
     private String fetchFileContent(CodeRepository repo, String filePath, String commitId) {
         return switch (repo.getProvider()) {
@@ -293,7 +277,6 @@ public class GitProviderFileService {
         }
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private HttpHeaders buildGitHubHeaders(CodeRepository repo) {
         HttpHeaders headers = new HttpHeaders();

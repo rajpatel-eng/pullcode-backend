@@ -1,4 +1,7 @@
 spring:
+  profiles:
+    active: local     # change to "cloud" to switch to Cloudinary
+
   datasource:
     url: jdbc:mysql://localhost:3306/code_review_db
     username: root
@@ -51,6 +54,7 @@ spring:
             scope:
               - email
               - profile
+
           github:
             client-id: ${GITHUB_CLIENT_ID}
             client-secret: ${GITHUB_CLIENT_SECRET}
@@ -58,12 +62,18 @@ spring:
             scope:
               - user:email
               - read:user
+
         provider:
           github:
             authorization-uri: https://github.com/login/oauth/authorize
             token-uri: https://github.com/login/oauth/access_token
             user-info-uri: https://api.github.com/user
             user-name-attribute: id
+
+  web:
+    resources:
+      # Serves local uploads as static files (ignored in cloud profile)
+      static-locations: file:${app.storage.local.base-path}/
 
 app:
   jwt:
@@ -74,9 +84,20 @@ app:
   otp:
     expiry-minutes: 10
 
-  # File storage path — files will be saved here
+  base-url: http://localhost:8080
+
   storage:
-    base-path: D:/codereviewsystem/uploads
+
+    # ── LOCAL storage (profile: local) ──────────────────────────────────────
+    local:
+      base-path: uploads                   # folder relative to project root
+      public-url: http://localhost:8080    # base URL Spring uses to serve files
+
+    # ── CLOUD storage (profile: cloud) — Cloudinary ─────────────────────────
+    cloudinary:
+      cloud-name: ${CLOUDINARY_CLOUD_NAME}
+      api-key: ${CLOUDINARY_API_KEY}
+      api-secret: ${CLOUDINARY_API_SECRET}
 
 server:
   port: 8080
