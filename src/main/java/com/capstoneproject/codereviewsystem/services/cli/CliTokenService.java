@@ -23,112 +23,127 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CliTokenService {
 
-    private final CliTokenRepository cliTokenRepository;
-    private final UserRepository userRepository;
-    private final ZipProjectRepository zipProjectRepository;
+        private final CliTokenRepository cliTokenRepository;
+        private final UserRepository userRepository;
+        private final ZipProjectRepository zipProjectRepository;
 
-    @Transactional
-    public CliTokenResponse generateToken(Long projectId, Long userId, GenerateTokenRequest req) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BadRequestException("User not found"));
+        @Transactional
+        public CliTokenResponse generateToken(Long projectId, Long userId, GenerateTokenRequest req) {
+                User user = getUser(userId);
+                ZipProject project = getProject(projectId, user);
 
-        ZipProject project = zipProjectRepository.findByIdAndUser(projectId, user)
-                .orElseThrow(() -> new BadRequestException("Project not found or access denied"));
+                String tokenName = (req.getName() != null && !req.getName().isBlank())
+                                ? req.getName().trim()
+                                : "Token-" + System.currentTimeMillis();
 
-        String tokenName = (req.getName() != null && !req.getName().isBlank())
-                ? req.getName()
-                : "Token-" + System.currentTimeMillis();
+                String rawToken = "crk_" + UUID.randomUUID().toString().replace("-", "");
 
-        String rawToken = "crk_" + UUID.randomUUID().toString().replace("-", "");
+                CliToken cliToken = CliToken.builder()
+                                .token(rawToken)
+                                .name(tokenName)
+                                .user(user)
+                                .zipProject(project)
+                                .active(true)
+                                .build();
 
-        CliToken cliToken = CliToken.builder()
-                .token(rawToken)
-                .name(tokenName)
-                .user(user)
-                .zipProject(project)
-                .active(true)
-                .build();
+                cliToken = cliTokenRepository.save(cliToken);
+                log.info("Token generated: project={} user={} tokenId={} name={}",
+                                projectId, userId, cliToken.getId(), tokenName);
 
-        cliToken = cliTokenRepository.save(cliToken);
-        log.info("CLI token generated: project={} user={} tokenId={} name={}",
-                projectId, userId, cliToken.getId(), tokenName);
+                return toResponse(cliToken);
+        }
 
-        return toResponse(cliToken);
-    }
+        public List<CliTokenResponse> getProjectTokens(Long projectId, Long userId) {
+                User user = getUser(userId);
+                ZipProject project = getProject(projectId, user);
 
-    @Transactional
-    public void revokeToken(Long projectId, Long tokenId, Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BadRequestException("User not found"));
+                return cliTokenRepository.findByZipProjectAndUserOrderByCreatedAtDesc(project, user)
+                                .stream()
+                                .map(this::toResponse)
+                                .collect(Collectors.toList());
+        }
 
-        ZipProject project = zipProjectRepository.findByIdAndUser(projectId, user)
-                .orElseThrow(() -> new BadRequestException("Project not found"));
+        @Transactional
+        public CliTokenResponse renameToken(Long projectId, Long tokenId, RenameTokenRequest req, Long userId) {
+                User user = getUser(userId);
+                ZipProject project = getProject(projectId, user);
 
-        CliToken token = cliTokenRepository.findByIdAndZipProjectAndUser(tokenId, project, user)
-                .orElseThrow(() -> new BadRequestException("Token not found"));
+                if (req.getName() == null || req.getName().isBlank()) {
+                        throw new BadRequestException("Token name is required");
+                }
 
-        token.setActive(false);
-        cliTokenRepository.save(token);
-        log.info("CLI token revoked: tokenId={} name={} project={}", tokenId, token.getName(), projectId);
-    }
+                CliToken token = getToken(tokenId, project, user);
+                token.setName(req.getName().trim());
+                cliTokenRepository.save(token);
+                log.info("Token renamed: tokenId={} project={}", tokenId, projectId);
+                return toResponse(token);
+        }
 
-    @Transactional
-    public CliTokenResponse toggleTokenStatus(Long projectId, Long tokenId, Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BadRequestException("User not found"));
+        @Transactional
+        public CliTokenResponse toggleTokenStatus(Long projectId, Long tokenId, Long userId) {
+                User user = getUser(userId);
+                ZipProject project = getProject(projectId, user);
 
-        ZipProject project = zipProjectRepository.findByIdAndUser(projectId, user)
-                .orElseThrow(() -> new BadRequestException("Project not found"));
+                CliToken token = getToken(tokenId, project, user);
+                token.setActive(!token.isActive());
+                cliTokenRepository.save(token);
+                log.info("Token {}: tokenId={} project={}",
+                                token.isActive() ? "resumed" : "paused", tokenId, projectId);
+                return toResponse(token);
+        }
 
-        CliToken token = cliTokenRepository.findByIdAndZipProjectAndUser(tokenId, project, user)
-                .orElseThrow(() -> new BadRequestException("Token not found"));
+        @Transactional
+        public void deleteToken(Long projectId, Long tokenId, Long userId) {
+                User user = getUser(userId);
+                ZipProject project = getProject(projectId, user);
 
-        boolean newStatus = !token.isActive();
-        token.setActive(newStatus);
-        cliTokenRepository.save(token);
-        log.info("CLI token {}: tokenId={} name={} project={}",
-                newStatus ? "resumed" : "paused", tokenId, token.getName(), projectId);
+                CliToken token = getToken(tokenId, project, user);
+                cliTokenRepository.delete(token);
+                log.info("Token deleted: tokenId={} project={}", tokenId, projectId);
+        }
 
-        return toResponse(token);
-    }
 
-    public List<CliTokenResponse> getProjectTokens(Long projectId, Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BadRequestException("User not found"));
+        public record TokenValidationResult(CliToken token, User user, ZipProject project) {
+        }
 
-        ZipProject project = zipProjectRepository.findByIdAndUser(projectId, user)
-                .orElseThrow(() -> new BadRequestException("Project not found"));
+        @Transactional
+        public TokenValidationResult validateAndTouch(String rawToken) {
+                CliToken token = cliTokenRepository.findByTokenAndActiveTrue(rawToken)
+                                .orElseThrow(() -> new BadRequestException(
+                                                "Invalid, revoked, or paused CLI token."));
 
-        return cliTokenRepository.findByZipProjectAndUserOrderByCreatedAtDesc(project, user)
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
-    }
+                token.setLastUsedAt(LocalDateTime.now());
+                cliTokenRepository.save(token);
 
-    public record TokenValidationResult(CliToken token, User user, ZipProject project) {}
+                return new TokenValidationResult(token, token.getUser(), token.getZipProject());
+        }
 
-    @Transactional
-    public TokenValidationResult validateAndTouch(String rawToken) {
-        CliToken token = cliTokenRepository.findByTokenAndActiveTrue(rawToken)
-                .orElseThrow(() -> new BadRequestException(
-                        "Invalid, revoked, or paused CLI token. Run: code-rakshak init -t <token>"));
 
-        token.setLastUsedAt(LocalDateTime.now());
-        cliTokenRepository.save(token);
+        private User getUser(Long userId) {
+                return userRepository.findById(userId)
+                                .orElseThrow(() -> new BadRequestException("User not found"));
+        }
 
-        return new TokenValidationResult(token, token.getUser(), token.getZipProject());
-    }
+        private ZipProject getProject(Long projectId, User user) {
+                return zipProjectRepository.findByIdAndUser(projectId, user)
+                                .orElseThrow(() -> new BadRequestException("Project not found or access denied"));
+        }
 
-    private CliTokenResponse toResponse(CliToken t) {
-        return CliTokenResponse.builder()
-                .id(t.getId())
-                .token(t.getToken())
-                .name(t.getName())
-                .projectId(t.getZipProject().getId())
-                .projectTitle(t.getZipProject().getTitle())
-                .createdAt(t.getCreatedAt())
-                .lastUsedAt(t.getLastUsedAt())
-                .active(t.isActive())
-                .build();
-    }
+        private CliToken getToken(Long tokenId, ZipProject project, User user) {
+                return cliTokenRepository.findByIdAndZipProjectAndUser(tokenId, project, user)
+                                .orElseThrow(() -> new BadRequestException("Token not found"));
+        }
+
+        private CliTokenResponse toResponse(CliToken t) {
+                return CliTokenResponse.builder()
+                                .id(t.getId())
+                                .token(t.getToken())
+                                .name(t.getName())
+                                .projectId(t.getZipProject().getId())
+                                .projectTitle(t.getZipProject().getTitle())
+                                .createdAt(t.getCreatedAt())
+                                .lastUsedAt(t.getLastUsedAt())
+                                .active(t.isActive())
+                                .build();
+        }
 }

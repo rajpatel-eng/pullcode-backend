@@ -12,8 +12,9 @@ public class ProfileResponse {
     private String avatarUrl;
     private String authProvider;
 
-    private long githubReviews;
-    private long zipReviews;
-    private long cliReviews;
+    private long webhookReviews;
+
+    private long projectCommits;
+
     private long totalReviews;
 }

@@ -5,10 +5,9 @@ import com.capstoneproject.codereviewsystem.dtos.ProfileResponse;
 import com.capstoneproject.codereviewsystem.dtos.UserRequest;
 import com.capstoneproject.codereviewsystem.entity.User;
 import com.capstoneproject.codereviewsystem.exceptions.BadRequestException;
-import com.capstoneproject.codereviewsystem.repos.CliCommitHistoryRepository;
 import com.capstoneproject.codereviewsystem.repos.CommitHistoryRepository;
+import com.capstoneproject.codereviewsystem.repos.ProjectCommitRepository;
 import com.capstoneproject.codereviewsystem.repos.UserRepository;
-import com.capstoneproject.codereviewsystem.repos.ZipUploadHistoryRepository;
 import com.capstoneproject.codereviewsystem.services.auth.OtpService;
 import com.capstoneproject.codereviewsystem.services.email.EmailContentService;
 import com.capstoneproject.codereviewsystem.services.email.EmailService;
@@ -29,9 +28,8 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final CommitHistoryRepository commitHistoryRepository;
-    private final ZipUploadHistoryRepository zipUploadHistoryRepository;
-    private final CliCommitHistoryRepository cliCommitHistoryRepository;
+    private final CommitHistoryRepository commitHistoryRepository;   // webhook commits
+    private final ProjectCommitRepository projectCommitRepository;   // ZIP_UI + CLI commits
     private final PasswordEncoder passwordEncoder;
     private final OtpService otpService;
     private final EmailService emailService;
@@ -41,9 +39,11 @@ public class UserService {
     public ProfileResponse getProfile(Long userId) {
         User user = findUser(userId);
 
-        long githubReviews = commitHistoryRepository.countByUser(user);
-        long zipReviews = zipUploadHistoryRepository.countByUser(user);
-        long cliReviews = cliCommitHistoryRepository.countByUser(user);
+        // Webhook (GitHub/GitLab/Bitbucket) commits
+        long webhookReviews = commitHistoryRepository.countByUser(user);
+
+        // ZIP_UI + CLI combined — or split by source if needed
+        long projectCommits = projectCommitRepository.countByUserId(userId);
 
         return ProfileResponse.builder()
                 .id(user.getId())
@@ -51,10 +51,9 @@ public class UserService {
                 .email(user.getEmail())
                 .avatarUrl(user.getAvatarUrl())
                 .authProvider(user.getAuthProvider().name())
-                .githubReviews(githubReviews)
-                .zipReviews(zipReviews)
-                .cliReviews(cliReviews)
-                .totalReviews(githubReviews + zipReviews + cliReviews)
+                .webhookReviews(webhookReviews)
+                .projectCommits(projectCommits)
+                .totalReviews(webhookReviews + projectCommits)
                 .build();
     }
 
@@ -85,27 +84,20 @@ public class UserService {
         String avatarRelativePath = "avatars/" + filename;
 
         try {
-            // Delete old avatar if present
             if (user.getAvatarUrl() != null && !user.getAvatarUrl().isBlank()) {
                 String oldFilename = user.getAvatarUrl()
                         .substring(user.getAvatarUrl().lastIndexOf("/") + 1);
                 storageProvider.deleteFile("avatars/" + oldFilename);
             }
-
             storageProvider.saveFile(avatarRelativePath, file);
-
         } catch (IOException e) {
             log.error("Failed to save avatar: {}", e.getMessage());
             throw new BadRequestException("Failed to save image. Please try again.");
         }
 
-        String url = storageProvider.getPublicUrl(avatarRelativePath);
-
-        user.setAvatarUrl(url);
+        user.setAvatarUrl(storageProvider.getPublicUrl(avatarRelativePath));
         userRepository.save(user);
-
         log.info("Avatar updated for user: {}", user.getEmail());
-
         return getProfile(userId);
     }
 
@@ -117,11 +109,9 @@ public class UserService {
             throw new BadRequestException(
                     "OAuth accounts cannot change password this way. Please use forgot password.");
         }
-
         if (!passwordEncoder.matches(req.getOldPassword(), user.getPassword())) {
             throw new BadRequestException("Current password is incorrect.");
         }
-
         if (passwordEncoder.matches(req.getNewPassword(), user.getPassword())) {
             throw new BadRequestException("New password must be different from the current password.");
         }
@@ -137,10 +127,8 @@ public class UserService {
         log.info("Password changed for user: {}", user.getEmail());
     }
 
-
     public OtpResponse sendForgotPasswordOtp(UserRequest.ForgotPasswordSendOtp req) {
         if (!userRepository.existsByEmail(req.getEmail())) {
-            // Don't reveal whether email exists — return same message
             return new OtpResponse("If this email is registered, an OTP has been sent.", req.getEmail());
         }
 
@@ -169,7 +157,8 @@ public class UserService {
         User user = userRepository.findByEmail(req.getEmail())
                 .orElseThrow(() -> new BadRequestException("User not found."));
 
-        if (user.getPassword() != null && passwordEncoder.matches(req.getNewPassword(), user.getPassword())) {
+        if (user.getPassword() != null
+                && passwordEncoder.matches(req.getNewPassword(), user.getPassword())) {
             throw new BadRequestException("New password must be different from the current password.");
         }
 
@@ -184,15 +173,13 @@ public class UserService {
         log.info("Password reset via OTP for: {}", req.getEmail());
     }
 
-
     private User findUser(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new BadRequestException("User not found."));
     }
 
     private String getExtension(String filename) {
-        if (filename == null || !filename.contains("."))
-            return "jpg";
+        if (filename == null || !filename.contains(".")) return "jpg";
         return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
     }
 }

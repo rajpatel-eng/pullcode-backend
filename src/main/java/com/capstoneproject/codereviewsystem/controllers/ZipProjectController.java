@@ -1,10 +1,13 @@
 package com.capstoneproject.codereviewsystem.controllers;
 
+import com.capstoneproject.codereviewsystem.dtos.ProjectCommitDtos.*;
 import com.capstoneproject.codereviewsystem.dtos.ZipProjectDtos.*;
 import com.capstoneproject.codereviewsystem.security.UserPrincipal;
+import com.capstoneproject.codereviewsystem.services.project.ProjectCommitService;
 import com.capstoneproject.codereviewsystem.services.zip.ZipProjectService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,6 +23,7 @@ import java.util.List;
 public class ZipProjectController {
 
     private final ZipProjectService zipProjectService;
+    private final ProjectCommitService projectCommitService;
 
 
     @PostMapping("/projects")
@@ -36,12 +40,11 @@ public class ZipProjectController {
         return ResponseEntity.ok(zipProjectService.getAllProjects(currentUser.getId()));
     }
 
-    @GetMapping("/projects/{projectId}/history")
-    public ResponseEntity<ProjectWithHistoryResponse> getProjectWithHistory(
+    @GetMapping("/projects/{projectId}")
+    public ResponseEntity<ProjectResponse> getProject(
             @PathVariable Long projectId,
             @AuthenticationPrincipal UserPrincipal currentUser) {
-        return ResponseEntity.ok(
-                zipProjectService.getProjectWithHistory(projectId, currentUser.getId()));
+        return ResponseEntity.ok(zipProjectService.getProject(projectId, currentUser.getId()));
     }
 
     @PatchMapping("/projects/{projectId}")
@@ -62,40 +65,35 @@ public class ZipProjectController {
     }
 
 
-    @PostMapping(value = "/projects/{id}/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<UploadResponse> uploadZip(
-            @PathVariable Long id,
+    @PostMapping(value = "/projects/{projectId}/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommitResponse> uploadZip(
+            @PathVariable Long projectId,
             @RequestParam("file") MultipartFile file,
-            @RequestParam("subtitle") String subtitle,
-            @RequestParam(value = "commitMessage", required = false) String commitMessage,  // NEW
-            @RequestParam(value = "extraMessage",  required = false) String extraMessage,
+            @RequestParam("tokenId") Long tokenId,
+            @RequestParam("commitMessage") String commitMessage,
+            @RequestParam(value = "extraMessage", required = false) String extraMessage,
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
-        log.info("ZIP upload request: project={} subtitle='{}' user={}",
-                id, subtitle, currentUser.getId());
+        log.info("ZIP UI upload: project={} user={}", projectId, currentUser.getId());
 
-        UploadResponse response = zipProjectService.uploadZip(
-                id, file, subtitle, commitMessage, extraMessage, currentUser.getId());
+        ZipUploadRequest req = new ZipUploadRequest();
+        req.setTokenId(tokenId);
+        req.setCommitMessage(commitMessage);
+        req.setExtraMessage(extraMessage);
 
-        return ResponseEntity.status(201).body(response);
+        return ResponseEntity.status(201)
+                .body(projectCommitService.uploadFromUi(projectId, file, req, currentUser.getId()));
     }
 
 
-    @GetMapping("/projects/{projectId}/history/{historyId}")
-    public ResponseEntity<UploadHistoryResponse> getUploadHistory(
+    @GetMapping("/projects/{projectId}/history")
+    public ResponseEntity<Page<CommitHistoryItem>> getCommitHistory(
             @PathVariable Long projectId,
-            @PathVariable Long historyId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal UserPrincipal currentUser) {
+
         return ResponseEntity.ok(
-                zipProjectService.getUploadHistory(projectId, historyId, currentUser.getId()));
-    }
-
-    @DeleteMapping("/projects/{projectId}/history/{historyId}")
-    public ResponseEntity<Void> deleteUploadHistory(
-            @PathVariable Long projectId,
-            @PathVariable Long historyId,
-            @AuthenticationPrincipal UserPrincipal currentUser) {
-        zipProjectService.deleteUploadHistory(projectId, historyId, currentUser.getId());
-        return ResponseEntity.noContent().build();
+                projectCommitService.getHistory(projectId, currentUser.getId(), page, size));
     }
 }

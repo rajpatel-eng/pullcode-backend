@@ -29,7 +29,7 @@ public class ZipProject {
     private String latestStoragePath;
 
     @Builder.Default
-    private Integer uploadCount = 0;
+    private Integer commitCount = 0;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -53,13 +53,8 @@ public class ZipProject {
 
     @OneToMany(mappedBy = "zipProject", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<ZipUploadHistory> uploadHistories = new ArrayList<>();
+    private List<ProjectCommit> commits = new ArrayList<>();
 
-    @OneToMany(mappedBy = "zipProject", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<CliCommitHistory> cliCommitHistories = new ArrayList<>();
- 
-    
     @OneToMany(mappedBy = "zipProject", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<CliToken> cliTokens = new ArrayList<>();
