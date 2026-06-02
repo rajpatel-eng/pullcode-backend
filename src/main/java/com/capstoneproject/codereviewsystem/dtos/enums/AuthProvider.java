@@ -1,4 +1,4 @@
-package com.capstoneproject.codereviewsystem.dtos;
+package com.capstoneproject.codereviewsystem.dtos.enums;
 
 public enum AuthProvider {
         LOCAL, GOOGLE, GITHUB

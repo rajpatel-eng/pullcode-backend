@@ -54,45 +54,56 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                        "/api/auth/**",
-                        "/oauth2/**",
-                        "/login/oauth2/**",
-                        "/login-success",
-                        "/api/webhook/**",
-                        "/api/cli/push",        
-                        "/api/cli/change-token", 
-                        "/api/cli/token-info",   
-                        "/api/cli/log", 
-                        "/avatars/**",       
-                        "/error"
-                ).permitAll()
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers(
-                        "/api/user/**",
-                        "/api/repositories",
-                        "/api/zip/**",
-                        "/api/cli/**"     
-                ).hasAnyRole("USER", "ADMIN")
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-            .oauth2Login(oauth2 -> oauth2
-                .authorizationEndpoint(e -> e
-                    .baseUri("/oauth2/authorize")
-                    .authorizationRequestRepository(cookieRepo))
-                .redirectionEndpoint(e -> e
-                    .baseUri("/oauth2/callback/*"))
-                .userInfoEndpoint(e -> e
-                    .userService(customOAuth2UserService))
-                .successHandler(successHandler)
-                .failureHandler(failureHandler)
-            );
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint))
+                .authorizeHttpRequests(auth -> auth
+
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/oauth2/**",
+                                "/login/oauth2/**",
+                                "/login-success",
+                                "/api/webhook/**",
+                                "/api/cli/push",
+                                "/api/cli/change-token",
+                                "/api/cli/token-info",
+                                "/api/cli/log",
+                                "/avatars/**",
+                                "/error",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui.html")
+                        .permitAll()
+
+                        .requestMatchers("/api/admin/auth/**").permitAll()
+
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                        .requestMatchers("/api/iam/**").hasAnyRole("ADMIN", "IAM")
+
+                        .requestMatchers("/api/models/**").hasAnyRole("ADMIN", "IAM", "USER")
+
+                        .requestMatchers(
+                                "/api/user/**",
+                                "/api/repositories/**",
+                                "/api/zip/**",
+                                "/api/cli/**")
+                        .hasAnyRole("USER", "ADMIN")
+
+                        .anyRequest().authenticated())
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(e -> e
+                                .baseUri("/oauth2/authorize")
+                                .authorizationRequestRepository(cookieRepo))
+                        .redirectionEndpoint(e -> e
+                                .baseUri("/oauth2/callback/*"))
+                        .userInfoEndpoint(e -> e
+                                .userService(customOAuth2UserService))
+                        .successHandler(successHandler)
+                        .failureHandler(failureHandler));
 
         return http.build();
     }

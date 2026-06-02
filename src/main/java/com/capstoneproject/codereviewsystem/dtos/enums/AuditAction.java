@@ -1,0 +1,18 @@
+package com.capstoneproject.codereviewsystem.dtos.enums;
+
+public enum AuditAction {
+    IAM_CREATED,
+    IAM_UPDATED,
+    IAM_PAUSED,
+    IAM_RESUMED,
+    IAM_DELETED,
+    IAM_PASSWORD_RESET,
+    AI_MODEL_CREATED,
+    AI_MODEL_UPDATED,
+    AI_MODEL_PAUSED,
+    AI_MODEL_RESUMED,
+    AI_MODEL_DELETED,
+    AI_MODEL_API_KEY_ROTATED,
+    DEFAULT_MODEL_CHANGED,
+    REPO_AI_MODEL_CHANGED
+}

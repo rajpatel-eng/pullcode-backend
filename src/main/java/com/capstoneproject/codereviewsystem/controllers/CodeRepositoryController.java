@@ -64,6 +64,20 @@ public class CodeRepositoryController {
                 repoService.updateAccessToken(id, accessToken, currentUser.getId()));
     }
 
+
+    @PatchMapping("/{id}/ai-model")
+    public ResponseEntity<CodeRepositoryResponse> updateAiModel(
+            @PathVariable Long id,
+            @RequestBody Map<String, Long> body,
+            @CurrentUser UserPrincipal currentUser) {
+        Long aiModelId = body.get("aiModelId");
+        if (aiModelId == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(
+                repoService.updateAiModel(id, aiModelId, currentUser.getId()));
+    }
+
     @GetMapping("/{id}/commits")
     public ResponseEntity<Page<CommitHistoryResponse>> getCommitHistory(
             @PathVariable Long id,

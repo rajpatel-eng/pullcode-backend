@@ -10,11 +10,11 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.capstoneproject.codereviewsystem.dtos.AuthProvider;
+import com.capstoneproject.codereviewsystem.dtos.enums.AuthProvider;
+import com.capstoneproject.codereviewsystem.dtos.enums.Role;
 import com.capstoneproject.codereviewsystem.dtos.AuthRequest;
 import com.capstoneproject.codereviewsystem.dtos.AuthResponse;
 import com.capstoneproject.codereviewsystem.dtos.OtpResponse;
-import com.capstoneproject.codereviewsystem.dtos.Role;
 import com.capstoneproject.codereviewsystem.entity.RefreshToken;
 import com.capstoneproject.codereviewsystem.entity.User;
 import com.capstoneproject.codereviewsystem.exceptions.BadRequestException;

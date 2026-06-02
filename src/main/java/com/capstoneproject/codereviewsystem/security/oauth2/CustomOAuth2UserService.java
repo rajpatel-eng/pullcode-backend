@@ -1,7 +1,7 @@
 package com.capstoneproject.codereviewsystem.security.oauth2;
 
-import com.capstoneproject.codereviewsystem.dtos.AuthProvider;
-import com.capstoneproject.codereviewsystem.dtos.Role;
+import com.capstoneproject.codereviewsystem.dtos.enums.AuthProvider;
+import com.capstoneproject.codereviewsystem.dtos.enums.Role;
 import com.capstoneproject.codereviewsystem.entity.User;
 import com.capstoneproject.codereviewsystem.repos.UserRepository;
 import com.capstoneproject.codereviewsystem.security.UserPrincipal;

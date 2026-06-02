@@ -1,8 +1,8 @@
 package com.capstoneproject.codereviewsystem.repos;
 
+import com.capstoneproject.codereviewsystem.entity.AiModel;
 import com.capstoneproject.codereviewsystem.entity.CodeRepository;
 import com.capstoneproject.codereviewsystem.entity.User;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -19,4 +19,8 @@ public interface CodeRepositoryRepository extends JpaRepository<CodeRepository, 
     boolean existsByRepoUrlAndUser(String repoUrl, User user);
 
     List<CodeRepository> findAllByRepoUrl(String repoUrl);
+
+    List<CodeRepository> findByAiModel(AiModel aiModel);
+
+    List<CodeRepository> findByAiModelIsNull();
 }

@@ -3,25 +3,12 @@ package com.capstoneproject.codereviewsystem.entity;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.capstoneproject.codereviewsystem.dtos.AuthProvider;
-import com.capstoneproject.codereviewsystem.dtos.Role;
+import com.capstoneproject.codereviewsystem.dtos.enums.AuthProvider;
+import com.capstoneproject.codereviewsystem.dtos.enums.Role;
+import com.capstoneproject.codereviewsystem.dtos.enums.UserStatus;
 
-import jakarta.persistence.CollectionTable;
-import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import jakarta.persistence.*;
+import lombok.*;
 
 @Entity
 @Table(name = "users")
@@ -31,6 +18,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -48,11 +36,20 @@ public class User {
 
     @Column(nullable = false)
     @Builder.Default
-    private boolean emailVerified = false; 
+    private boolean emailVerified = false;
 
     @Builder.Default
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles")
     @Enumerated(EnumType.STRING)
     private Set<Role> roles = new HashSet<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private UserStatus status = UserStatus.ACTIVE;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_id")
+    private User createdBy;
 }

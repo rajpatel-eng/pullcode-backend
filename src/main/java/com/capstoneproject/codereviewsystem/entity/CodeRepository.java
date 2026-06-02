@@ -39,6 +39,10 @@ public class CodeRepository {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ai_model_id", nullable = true)
+    private AiModel aiModel;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 

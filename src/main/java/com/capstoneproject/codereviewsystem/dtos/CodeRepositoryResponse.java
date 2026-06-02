@@ -17,4 +17,7 @@ public class CodeRepositoryResponse {
     private LocalDateTime createdAt;
     private String webhookSecret;
     private String webhookUrl;
+    private Long aiModelId;
+    private String aiModelName;
+    private String aiModelProvider;
 }
