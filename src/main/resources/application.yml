@@ -72,7 +72,6 @@ spring:
 
   web:
     resources:
-      # Serves local uploads as static files (ignored in cloud profile)
       static-locations: file:${app.storage.local.base-path}/
 
 app:
@@ -88,16 +87,24 @@ app:
 
   storage:
 
-    # ── LOCAL storage (profile: local) ──────────────────────────────────────
     local:
-      base-path: uploads                   # folder relative to project root
-      public-url: http://localhost:8080    # base URL Spring uses to serve files
+      base-path: uploads                   
+      public-url: http://localhost:8080
 
-    # ── CLOUD storage (profile: cloud) — Cloudinary ─────────────────────────
     cloudinary:
       cloud-name: ${CLOUDINARY_CLOUD_NAME}
       api-key: ${CLOUDINARY_API_KEY}
       api-secret: ${CLOUDINARY_API_SECRET}
+  
+  analytics:
+    health-check-interval-ms: 900000
+    threshold:
+      success-rate: 80.0
+      error-rate: 15.0
+      latency-ms: 10000
+      cost-spike-multiplier: 3.0
+      rate-limit-count: 20
+      timeout-count: 20
   encryption:
     secret-key : MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
 

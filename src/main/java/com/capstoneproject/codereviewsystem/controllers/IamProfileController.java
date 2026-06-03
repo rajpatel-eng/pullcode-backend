@@ -1,6 +1,5 @@
 package com.capstoneproject.codereviewsystem.controllers;
 
-import com.capstoneproject.codereviewsystem.dtos.AdminAuthDtos;
 import com.capstoneproject.codereviewsystem.dtos.UserRequest;
 import com.capstoneproject.codereviewsystem.security.CurrentUser;
 import com.capstoneproject.codereviewsystem.security.UserPrincipal;
