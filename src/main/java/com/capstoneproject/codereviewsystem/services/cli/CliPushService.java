@@ -8,10 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-/**
- * Thin facade kept so the CLI controller has a named entry-point.
- * All real logic lives in ProjectCommitService.
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor

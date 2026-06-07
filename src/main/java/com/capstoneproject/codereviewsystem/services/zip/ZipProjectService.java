@@ -1,9 +1,11 @@
 package com.capstoneproject.codereviewsystem.services.zip;
 
 import com.capstoneproject.codereviewsystem.dtos.ZipProjectDtos.*;
+import com.capstoneproject.codereviewsystem.entity.AiModel;
 import com.capstoneproject.codereviewsystem.entity.User;
 import com.capstoneproject.codereviewsystem.entity.ZipProject;
 import com.capstoneproject.codereviewsystem.exceptions.BadRequestException;
+import com.capstoneproject.codereviewsystem.repos.AiModelRepository;
 import com.capstoneproject.codereviewsystem.repos.ProjectCommitRepository;
 import com.capstoneproject.codereviewsystem.repos.UserRepository;
 import com.capstoneproject.codereviewsystem.repos.ZipProjectRepository;
@@ -25,6 +27,7 @@ public class ZipProjectService {
     private final ProjectCommitRepository commitRepository;
     private final ZipStorageService zipStorageService;
     private final UserRepository userRepository;
+    private final AiModelRepository aiModelRepository;   // ← NEW
 
     @Transactional
     public ProjectResponse createProject(CreateProjectRequest req, Long userId) {
@@ -41,8 +44,19 @@ public class ZipProjectService {
                 .commitCount(0)
                 .build();
 
+        if (req.getAiModelId() != null) {
+            AiModel model = aiModelRepository.findById(req.getAiModelId())
+                    .orElseThrow(() -> new BadRequestException("AI model not found: " + req.getAiModelId()));
+            if (!model.isActive() || model.isDeleted()) {
+                throw new BadRequestException("AI model is not active: " + req.getAiModelId());
+            }
+            project.setAiModel(model);
+        }
+
         ZipProject saved = zipProjectRepository.save(project);
-        log.info("Project created: '{}' by user: {}", saved.getTitle(), userId);
+        log.info("Project created: '{}' by user: {} aiModel={}",
+                saved.getTitle(), userId,
+                saved.getAiModel() != null ? saved.getAiModel().getId() : "none");
         return toProjectResponse(saved);
     }
 
@@ -74,6 +88,20 @@ public class ZipProjectService {
             project.setDescription(req.getDescription());
         }
 
+        if (req.isAiModelFieldPresent()) {
+            if (req.getAiModelId() != null) {
+                AiModel model = aiModelRepository.findById(req.getAiModelId())
+                        .orElseThrow(() -> new BadRequestException(
+                                "AI model not found: " + req.getAiModelId()));
+                if (!model.isActive() || model.isDeleted()) {
+                    throw new BadRequestException("AI model is not active: " + req.getAiModelId());
+                }
+                project.setAiModel(model);
+            } else {
+                project.setAiModel(null); // explicitly remove
+            }
+        }
+
         return toProjectResponse(zipProjectRepository.save(project));
     }
 
@@ -96,7 +124,8 @@ public class ZipProjectService {
 
     private ProjectResponse toProjectResponse(ZipProject p) {
         var latest = commitRepository
-                .findByZipProjectIdOrderByCommittedAtDesc(p.getId(), org.springframework.data.domain.PageRequest.of(0, 1))
+                .findByZipProjectIdOrderByCommittedAtDesc(
+                        p.getId(), org.springframework.data.domain.PageRequest.of(0, 1))
                 .getContent().stream().findFirst().orElse(null);
 
         return ProjectResponse.builder()
@@ -106,6 +135,8 @@ public class ZipProjectService {
                 .commitCount(p.getCommitCount())
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
+                .aiModelId(p.getAiModel() != null ? p.getAiModel().getId() : null)
+                .aiModelName(p.getAiModel() != null ? p.getAiModel().getName() : null)
                 .latestCommitMessage(latest != null ? latest.getCommitMessage() : null)
                 .latestCommitAt(latest != null ? latest.getCommittedAt() : null)
                 .build();

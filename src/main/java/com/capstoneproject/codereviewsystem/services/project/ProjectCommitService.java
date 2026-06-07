@@ -7,6 +7,8 @@ import com.capstoneproject.codereviewsystem.entity.ProjectCommit;
 import com.capstoneproject.codereviewsystem.entity.User;
 import com.capstoneproject.codereviewsystem.entity.ZipProject;
 import com.capstoneproject.codereviewsystem.exceptions.BadRequestException;
+import com.capstoneproject.codereviewsystem.kafka.events.ReviewSubmittedEvent;
+import com.capstoneproject.codereviewsystem.kafka.producer.ReviewEventProducer;
 import com.capstoneproject.codereviewsystem.repos.CliTokenRepository;
 import com.capstoneproject.codereviewsystem.repos.CommitHistoryRepository;
 import com.capstoneproject.codereviewsystem.repos.ProjectCommitRepository;
@@ -27,7 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -45,6 +46,7 @@ public class ProjectCommitService {
     private final ZipStorageService zipStorageService;
     private final CliTokenService cliTokenService;
     private final CommitHistoryRepository commitHistoryRepository;
+    private final ReviewEventProducer reviewEventProducer;   // ← NEW
 
 
     @Transactional
@@ -83,12 +85,13 @@ public class ProjectCommitService {
         log.info("ZIP UI upload: project={} commit={} token='{}' files={} user={}",
                 projectId, commit.getCommitHash(), token.getName(), extracted.getTotalFiles(), userId);
 
+        reviewEventProducer.submitZip(commit, commit.getStoragePath(), ReviewSubmittedEvent.Source.ZIP_UI);
+
         return toCommitResponse(commit, project,
                 "Upload successful. " + extracted.getTotalFiles() + " files stored, "
                         + extracted.getSkippedFiles() + " skipped.");
     }
 
-    // ── CLI push ───────────────────────────────────────────────────────────
 
     @Transactional
     public CommitResponse pushFromCli(String rawToken,
@@ -116,70 +119,35 @@ public class ProjectCommitService {
                 project.getId(), commit.getCommitHash(), token.getName(),
                 extracted.getTotalFiles(), user.getId());
 
+        reviewEventProducer.submitZip(commit, commit.getStoragePath(), ReviewSubmittedEvent.Source.CLI);
+
         return toCommitResponse(commit, project,
                 "✓ Pushed to " + project.getTitle()
                         + " [" + commit.getCommitHash() + "] · " + token.getName());
     }
 
-    // ── History ────────────────────────────────────────────────────────────
 
     public Page<CommitHistoryItem> getHistory(Long projectId, Long userId, int page, int size) {
         User user = getUser(userId);
         getProject(projectId, user); // ownership check
 
         return commitRepository
-                .findByZipProjectIdAndUserIdOrderByCommittedAtDesc(
-                        projectId, userId, PageRequest.of(page, size))
+                .findByZipProjectIdOrderByCommittedAtDesc(projectId, PageRequest.of(page, size))
                 .map(this::toHistoryItem);
     }
 
-    public Page<UserCommitItem> getUserAllCommits(Long userId, int page, int size) {
-        User user = getUser(userId);
+    public Page<UserCommitItem> getUserCommits(Long userId, int page, int size) {
 
-        List<UserCommitItem> zipCli = commitRepository
-                .findByUserIdOrderByCommittedAtDesc(userId, Pageable.unpaged())
-                .stream()
-                .map(c -> UserCommitItem.builder()
-                        .id(c.getId())
-                        .source(c.getSource().name())
-                        .commitHash(c.getCommitHash())
-                        .commitMessage(c.getCommitMessage())
-                        .reviewStatus(c.getReviewStatus().name())
-                        .committedAt(c.getCommittedAt())
-                        .projectId(c.getZipProject().getId())
-                        .projectTitle(c.getZipProject().getTitle())
-                        .tokenName(c.getCliToken().getName())
-                        .originalFileName(c.getOriginalFileName())
-                        .totalFilesExtracted(c.getTotalFilesExtracted())
-                        .build())
+        Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE);
+
+        List<ProjectCommit> zipCommits = commitRepository
+                .findByUserIdOrderByCommittedAtDesc(userId, pageable)
+                .getContent();
+
+        List<UserCommitItem> merged = zipCommits.stream()
+                .map(c -> toUserCommitItem(c, "ZIP"))
+                .sorted(Comparator.comparing(UserCommitItem::getCommittedAt).reversed())
                 .collect(Collectors.toList());
-
-        List<UserCommitItem> webhook = commitHistoryRepository
-                .findByUserOrderByCommittedAtDesc(user, Pageable.unpaged())
-                .stream()
-                .map(c -> UserCommitItem.builder()
-                        .id(c.getId())
-                        .source("WEBHOOK")
-                        .commitHash(c.getCommitId())
-                        .commitMessage(c.getCommitMessage())
-                        .reviewStatus(c.getReviewStatus().name())
-                        .committedAt(c.getCommittedAt())
-                        .repositoryId(c.getRepository().getId())
-                        .repositoryTitle(c.getRepository().getTitle())
-                        .repoUrl(c.getRepository().getRepoUrl())
-                        .branch(c.getBranch())
-                        .authorName(c.getAuthorName())
-                        .filesAddedCount(c.getFilesAddedCount())
-                        .filesModifiedCount(c.getFilesModifiedCount())
-                        .filesRemovedCount(c.getFilesRemovedCount())
-                        .build())
-                .collect(Collectors.toList());
-
-        List<UserCommitItem> merged = new ArrayList<>();
-        merged.addAll(zipCli);
-        merged.addAll(webhook);
-        merged.sort(Comparator.comparing(
-                UserCommitItem::getCommittedAt, Comparator.nullsLast(Comparator.reverseOrder())));
 
         int total   = merged.size();
         int fromIdx = Math.min(page * size, total);
@@ -265,6 +233,17 @@ public class ProjectCommitService {
                 .totalFilesExtracted(c.getTotalFilesExtracted())
                 .source(c.getSource().name())
                 .tokenName(c.getCliToken().getName())
+                .reviewStatus(c.getReviewStatus().name())
+                .committedAt(c.getCommittedAt())
+                .build();
+    }
+
+    private UserCommitItem toUserCommitItem(ProjectCommit c, String type) {
+        return UserCommitItem.builder()
+                .id(c.getId())
+                .commitHash(c.getCommitHash())
+                .commitMessage(c.getCommitMessage())
+                .source(c.getSource().name())
                 .reviewStatus(c.getReviewStatus().name())
                 .committedAt(c.getCommittedAt())
                 .build();

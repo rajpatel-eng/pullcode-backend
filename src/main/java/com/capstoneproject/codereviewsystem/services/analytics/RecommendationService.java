@@ -26,10 +26,6 @@ public class RecommendationService {
     private static final double LOW_ADOPTION_SHARE    = 5.0;
     private static final double HIGH_COST_MULTIPLIER  = 2.0;  // 2x avg cost = high cost
 
-    /**
-     * Generates recommendations for a single model by comparing it against
-     * all other active models in the system.
-     */
     public List<Recommendation> recommendationsForModel(AiModel model) {
         List<Recommendation> recs = new ArrayList<>();
 
@@ -39,7 +35,6 @@ public class RecommendationService {
         AdoptionMetrics    adopt   = aggregationService.computeAdoptionMetrics(model,
                 modelRepository.findByActiveTrueAndDeletedFalse().size());
 
-        // ── Success rate low ──────────────────────────────────────────────────
         if (perf.getSuccessRate() < LOW_SUCCESS_RATE) {
             recs.add(Recommendation.builder()
                     .aiModelId(model.getId())
@@ -54,7 +49,6 @@ public class RecommendationService {
                     .build());
         }
 
-        // ── High timeout count ────────────────────────────────────────────────
         if (perf.getTimeoutCount() > 50) {
             recs.add(Recommendation.builder()
                     .aiModelId(model.getId())
@@ -69,7 +63,6 @@ public class RecommendationService {
                     .build());
         }
 
-        // ── High latency ──────────────────────────────────────────────────────
         if (perf.getAvgResponseTimeMs() > HIGH_LATENCY_MS) {
             recs.add(Recommendation.builder()
                     .aiModelId(model.getId())
@@ -84,7 +77,6 @@ public class RecommendationService {
                     .build());
         }
 
-        // ── Low user rating ───────────────────────────────────────────────────
         if (quality.getUserFeedbackRating() > 0 &&
                 quality.getUserFeedbackRating() < LOW_USER_RATING) {
             recs.add(Recommendation.builder()
@@ -100,7 +92,6 @@ public class RecommendationService {
                     .build());
         }
 
-        // ── Low adoption ─────────────────────────────────────────────────────
         if (adopt.getMarketSharePercentage() < LOW_ADOPTION_SHARE &&
                 adopt.getCurrentRepositories() > 0) {
             recs.add(Recommendation.builder()
@@ -116,7 +107,6 @@ public class RecommendationService {
                     .build());
         }
 
-        // ── Cost vs average comparison ────────────────────────────────────────
         if (cost.getAvgCostPerReview().compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal systemAvgCost = computeSystemAvgCostPerReview();
             if (systemAvgCost.compareTo(BigDecimal.ZERO) > 0) {
@@ -141,7 +131,6 @@ public class RecommendationService {
             }
         }
 
-        // ── Positive: CHANGE_DEFAULT candidate ───────────────────────────────
         if (perf.getSuccessRate() >= 99.0
                 && quality.getUserFeedbackRating() >= 4.5
                 && !model.isDefaultModel()) {
@@ -158,15 +147,10 @@ public class RecommendationService {
                     .build());
         }
 
-        // Sort by priority ascending (1 = most urgent)
         recs.sort(Comparator.comparingInt(Recommendation::getPriority));
         return recs;
     }
 
-    /**
-     * Generates recommendations across all active models — used for the
-     * system-wide analytics summary dashboard.
-     */
     public List<Recommendation> allRecommendations() {
         List<Recommendation> all = new ArrayList<>();
         modelRepository.findByActiveTrueAndDeletedFalse()
@@ -175,7 +159,6 @@ public class RecommendationService {
         return all.stream().limit(10).toList(); // top 10 for dashboard
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private BigDecimal computeSystemAvgCostPerReview() {
         List<AiModel> activeModels = modelRepository.findByActiveTrueAndDeletedFalse();

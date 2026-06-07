@@ -74,7 +74,6 @@ public class ZipStorageService {
                     continue;
                 }
 
-                // ZIP-slip guard: reject entries that escape the target directory
                 if (entryName.contains("..")) {
                     log.warn("ZIP slip attack detected: {}", entryName);
                     zis.closeEntry();

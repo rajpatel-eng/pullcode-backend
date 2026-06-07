@@ -14,7 +14,7 @@ import java.util.Comparator;
 
 @Slf4j
 @Service
-@Profile({"local", "default"})   // active when no profile set, or profile=local
+@Profile({"local", "default"})  
 public class LocalStorageProvider implements StorageProvider {
 
     @Value("${app.storage.local.base-path:uploads}")

@@ -33,91 +33,96 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthFilter;
-    private final JwtAuthenticationEntryPoint entryPoint;
-    private final CustomOAuth2UserService customOAuth2UserService;
-    private final OAuth2AuthenticationSuccessHandler successHandler;
-    private final OAuth2AuthenticationFailureHandler failureHandler;
-    private final HttpCookieOAuth2AuthorizationRequestRepository cookieRepo;
+        private final JwtAuthenticationFilter jwtAuthFilter;
+        private final JwtAuthenticationEntryPoint entryPoint;
+        private final CustomOAuth2UserService customOAuth2UserService;
+        private final OAuth2AuthenticationSuccessHandler successHandler;
+        private final OAuth2AuthenticationFailureHandler failureHandler;
+        private final HttpCookieOAuth2AuthorizationRequestRepository cookieRepo;
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
 
-    @Bean
-    public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
-    }
-    
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                        "/api/auth/**",
-                        "/oauth2/**",
-                        "/login/oauth2/**",
-                        "/login-success",
-                        "/api/webhook/**",
-                        "/api/cli/push",
-                        "/api/cli/change-token",
-                        "/api/cli/token-info",
-                        "/api/cli/log",
-                        "/avatars/**",
-                        "/error"
-                ).permitAll()
+        @Bean
+        public AuthenticationManager authenticationManager(
+                        AuthenticationConfiguration config) throws Exception {
+                return config.getAuthenticationManager();
+        }
 
-                .requestMatchers("/api/admin/auth/**").permitAll()
+        @Bean
+        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+                http
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                                .csrf(csrf -> csrf.disable())
+                                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint))
+                                .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers(
+                                                                "/api/auth/**",
+                                                                "/oauth2/**",
+                                                                "/login/oauth2/**",
+                                                                "/login-success",
+                                                                "/api/webhook/**",
+                                                                "/api/cli/push",
+                                                                "/api/cli/change-token",
+                                                                "/api/cli/token-info",
+                                                                "/api/cli/log",
+                                                                "/avatars/**",
+                                                                "/error")
+                                                .permitAll()
 
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                                                .requestMatchers("/api/admin/auth/**").permitAll()
 
-                .requestMatchers("/api/iam/**").hasAnyRole("ADMIN", "IAM")
+                                                .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                .requestMatchers("/api/models/**").hasAnyRole("ADMIN", "IAM", "USER")
+                                                .requestMatchers("/api/iam/**").hasAnyRole("ADMIN", "IAM")
 
-                .requestMatchers("/api/analytics/**").hasAnyRole("ADMIN", "IAM")
+                                                .requestMatchers("/api/models/**", "/api/sse/**",
+                                                                "/api/reviews/**")
+                                                .hasAnyRole("ADMIN", "IAM", "USER")
 
-                .requestMatchers(
-                        "/api/user/**",
-                        "/api/repositories/**",
-                        "/api/zip/**",
-                        "/api/cli/**"
-                ).hasAnyRole("USER", "ADMIN")
+                                                .requestMatchers("/api/analytics/**").hasAnyRole("ADMIN", "IAM")
 
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-            .oauth2Login(oauth2 -> oauth2
-                .authorizationEndpoint(e -> e
-                    .baseUri("/oauth2/authorize")
-                    .authorizationRequestRepository(cookieRepo))
-                .redirectionEndpoint(e -> e
-                    .baseUri("/oauth2/callback/*"))
-                .userInfoEndpoint(e -> e
-                    .userService(customOAuth2UserService))
-                .successHandler(successHandler)
-                .failureHandler(failureHandler)
-            );
+                                                .requestMatchers(
+                                                                "/api/user/**",
+                                                                "/api/repositories/**",
+                                                                "/api/zip/**",
+                                                                "/api/cli/**")
+                                                .hasAnyRole("USER", "ADMIN")
 
-        return http.build();
-    }
+                                                .requestMatchers(
+                                                                "/api/sse/**",
+                                                                "/api/reviews/**")
+                                                .authenticated()
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
-        config.setMaxAge(3600L);
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
-    }
+                                                .anyRequest().authenticated())
+                                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                                .oauth2Login(oauth2 -> oauth2
+                                                .authorizationEndpoint(e -> e
+                                                                .baseUri("/oauth2/authorize")
+                                                                .authorizationRequestRepository(cookieRepo))
+                                                .redirectionEndpoint(e -> e
+                                                                .baseUri("/oauth2/callback/*"))
+                                                .userInfoEndpoint(e -> e
+                                                                .userService(customOAuth2UserService))
+                                                .successHandler(successHandler)
+                                                .failureHandler(failureHandler));
+
+                return http.build();
+        }
+
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
+                CorsConfiguration config = new CorsConfiguration();
+                config.setAllowedOriginPatterns(List.of("*"));
+                config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+                config.setAllowedHeaders(List.of("*"));
+                config.setAllowCredentials(true);
+                config.setMaxAge(3600L);
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", config);
+                return source;
+        }
 }

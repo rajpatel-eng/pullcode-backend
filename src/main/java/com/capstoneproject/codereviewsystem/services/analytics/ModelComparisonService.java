@@ -21,10 +21,6 @@ public class ModelComparisonService {
     private final TrendAnalyticsService       trendService;
     private final RecommendationService       recommendationService;
 
-    /**
-     * Builds a full comparison response for the requested model IDs.
-     * Validates that 2–5 models are requested (1 is pointless, 6+ is too noisy).
-     */
     public ComparisonResponse compare(List<Long> modelIds, TrendPeriod period) {
         if (modelIds == null || modelIds.size() < 2) {
             throw new BadRequestException("At least 2 models are required for comparison");
@@ -51,7 +47,6 @@ public class ModelComparisonService {
                 .build();
     }
 
-    // ── Builds one row in the comparison table ────────────────────────────────
 
     private ModelComparisonRow buildComparisonRow(Long modelId, long totalRepos) {
         AiModel model = modelRepository.findByIdAndDeletedFalse(modelId)
@@ -71,31 +66,24 @@ public class ModelComparisonService {
                 .provider(model.getProvider())
                 .isDefault(model.isDefaultModel())
                 .healthStatus(health)
-                // Usage
                 .totalReviews(usage.getTotalReviews())
                 .repositoriesUsing(usage.getTotalRepositoriesUsing())
-                // Cost
                 .totalCost(cost.getTotalCost())
                 .avgCostPerReview(cost.getAvgCostPerReview())
-                // Performance
                 .avgResponseTimeMs(perf.getAvgResponseTimeMs())
                 .p95ResponseTimeMs(perf.getP95ResponseTimeMs())
                 .successRate(perf.getSuccessRate())
-                // Quality
                 .avgReviewScore(quality.getAvgReviewScore())
                 .userFeedbackRating(quality.getUserFeedbackRating())
-                // Adoption
                 .marketSharePercentage(adopt.getMarketSharePercentage())
                 .repositoryGrowthTrend(adopt.getRepositoryGrowthTrend())
                 .build();
     }
 
-    // ── Cross-model textual recommendations ──────────────────────────────────
 
     private List<String> buildComparisonRecommendations(List<ModelComparisonRow> rows) {
         if (rows.isEmpty()) return List.of();
 
-        // Find best and worst performers on key dimensions
         ModelComparisonRow bestSuccess = rows.stream()
                 .max(java.util.Comparator.comparingDouble(ModelComparisonRow::getSuccessRate))
                 .orElse(rows.get(0));

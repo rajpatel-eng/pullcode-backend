@@ -10,33 +10,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 
-/**
- * Integration point between the existing AI review pipeline and the analytics system.
- *
- * HOW TO INTEGRATE:
- * -----------------
- * In your existing AiReviewService (or wherever reviews complete/fail),
- * inject this service and call the appropriate method:
- *
- *   // On successful review:
- *   reviewRecordService.recordSuccess(model, repo, commit,
- *       latencyMs, generationMs, inputTokens, outputTokens, cost);
- *
- *   // On failure:
- *   reviewRecordService.recordFailure(model, repo, commit,
- *       ReviewOutcome.FAILED, latencyMs, errorMessage);
- *
- *   // When user rates a review:
- *   reviewRecordService.recordUserFeedback(recordId, rating, helpful, accepted);
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AiModelReviewRecordService {
 
     private final AiModelReviewRecordRepository reviewRecordRepo;
-
-    // ── Record a successful review ────────────────────────────────────────────
 
     @Transactional
     public AiModelReviewRecord recordSuccess(AiModel model,
@@ -66,8 +45,6 @@ public class AiModelReviewRecordService {
         return record;
     }
 
-    // ── Record a failed / timed-out / rate-limited review ────────────────────
-
     @Transactional
     public AiModelReviewRecord recordFailure(AiModel model,
                                               CodeRepository repo,
@@ -94,8 +71,6 @@ public class AiModelReviewRecordService {
         return record;
     }
 
-    // ── Record user feedback on a completed review ────────────────────────────
-
     @Transactional
     public void recordUserFeedback(Long recordId,
                                     Integer rating,
@@ -113,8 +88,6 @@ public class AiModelReviewRecordService {
         });
     }
 
-    // ── Record false positive / negative flag ─────────────────────────────────
-
     @Transactional
     public void recordQualityFlag(Long recordId, boolean isFalsePositive, boolean isFalseNegative) {
         reviewRecordRepo.findById(recordId).ifPresent(record -> {
@@ -124,7 +97,6 @@ public class AiModelReviewRecordService {
         });
     }
 
-    // ── Record AI-assigned review score ──────────────────────────────────────
 
     @Transactional
     public void recordReviewScore(Long recordId, BigDecimal score) {

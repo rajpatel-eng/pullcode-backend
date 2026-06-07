@@ -25,8 +25,6 @@ public class AnalyticsDashboardService {
     private final HealthMonitoringService      healthService;
     private final RecommendationService        recommendationService;
 
-    // ── Full dashboard for a single model ─────────────────────────────────────
-
     public ModelDashboard getModelDashboard(Long modelId) {
         AiModel model = modelRepository.findByIdAndDeletedFalse(modelId)
                 .orElseThrow(() -> new BadRequestException("AI model not found: " + modelId));
@@ -62,15 +60,12 @@ public class AnalyticsDashboardService {
                 .build();
     }
 
-    // ── System-wide analytics summary ─────────────────────────────────────────
-
     public SystemAnalyticsSummary getSystemSummary() {
         List<AiModel> allActive = modelRepository.findByActiveTrueAndDeletedFalse();
         int totalModels   = (int) modelRepository.findByDeletedFalse(
                 PageRequest.of(0, Integer.MAX_VALUE)).getTotalElements();
         int activeModels  = allActive.size();
 
-        // Health counts
         long healthy   = 0, degraded = 0, unhealthy = 0;
         for (AiModel m : allActive) {
             ModelHealthStatus h = aggregationService.computeHealthStatus(m);
@@ -79,7 +74,6 @@ public class AnalyticsDashboardService {
             else unhealthy++;
         }
 
-        // Reviews today and this month across all models
         long totalReviewsToday  = 0, totalReviewsMonth = 0;
         BigDecimal totalCostMonth = BigDecimal.ZERO;
         for (AiModel m : allActive) {
@@ -90,7 +84,6 @@ public class AnalyticsDashboardService {
             totalCostMonth      = totalCostMonth.add(c.getCostThisMonth());
         }
 
-        // Best performers
         String bestPerforming = allActive.stream()
                 .max(java.util.Comparator.comparingDouble(m ->
                         aggregationService.computePerformanceMetrics(m).getSuccessRate()))

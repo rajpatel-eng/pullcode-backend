@@ -9,12 +9,18 @@ public class ZipProjectDtos {
     public static class CreateProjectRequest {
         private String title;
         private String description;
+        private Long aiModelId;
     }
 
     @Data
     public static class UpdateProjectRequest {
         private String title;
         private String description;
+
+        private Long aiModelId;
+
+        @Setter(AccessLevel.PUBLIC)
+        private boolean aiModelFieldPresent = false;
     }
 
     @Data
@@ -25,10 +31,12 @@ public class ZipProjectDtos {
         private Long id;
         private String title;
         private String description;
-        private Integer commitCount;          
+        private Integer commitCount;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
-        private String latestCommitMessage;   
+        private Long aiModelId;
+        private String aiModelName;
+        private String latestCommitMessage;
         private LocalDateTime latestCommitAt;
     }
 }

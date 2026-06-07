@@ -24,6 +24,6 @@ public class UserCommitsController {
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
         return ResponseEntity.ok(
-                projectCommitService.getUserAllCommits(currentUser.getId(), page, size));
+                projectCommitService.getUserCommits(currentUser.getId(), page, size));
     }
 }

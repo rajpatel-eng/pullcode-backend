@@ -16,13 +16,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Nightly scheduler that:
- *  1. Aggregates per-review records into daily usage stats.
- *  2. Computes and stores a daily JSON snapshot for each model.
- *  3. Evaluates health thresholds and fires alerts.
- *  4. Runs every day at 00:05 AM server time.
- */
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -37,7 +31,6 @@ public class AnalyticsSnapshotScheduler {
     private final HealthMonitoringService       healthMonitoringService;
     private final ObjectMapper                  objectMapper;
 
-    // ── Nightly snapshot — runs at 00:05 every day ────────────────────────────
 
     @Scheduled(cron = "0 5 0 * * *")
     @Transactional
@@ -61,7 +54,6 @@ public class AnalyticsSnapshotScheduler {
         log.info("Nightly snapshot complete for {} models", models.size());
     }
 
-    // ── Health check — runs every 15 minutes ─────────────────────────────────
 
     @Scheduled(fixedDelayString = "${app.analytics.health-check-interval-ms:900000}")
     public void runHealthCheck() {
@@ -75,7 +67,6 @@ public class AnalyticsSnapshotScheduler {
         });
     }
 
-    // ── Aggregate per-review records into AiModelUsageStats for a given day ──
 
     @Transactional
     public void aggregateDailyStats(AiModel model, LocalDate date) {
@@ -131,7 +122,6 @@ public class AnalyticsSnapshotScheduler {
         long helpfulCount   = records.stream().filter(AiModelReviewRecord::isMarkedHelpful).count();
         long acceptedCount  = records.stream().filter(AiModelReviewRecord::isSuggestionAccepted).count();
 
-        // Upsert — find existing row or create new
         AiModelUsageStats stats = usageStatsRepo
                 .findByAiModelAndStatDate(model, date)
                 .orElse(AiModelUsageStats.builder().aiModel(model).statDate(date).build());
@@ -159,7 +149,6 @@ public class AnalyticsSnapshotScheduler {
         log.debug("Aggregated daily stats for model {} on {}: {} reviews", model.getName(), date, totalReviews);
     }
 
-    // ── Write JSON snapshot ───────────────────────────────────────────────────
 
     @Transactional
     public void writeDailySnapshot(AiModel model, LocalDate date) {
@@ -213,7 +202,6 @@ public class AnalyticsSnapshotScheduler {
         log.debug("Wrote daily snapshot for model {} on {} — health: {}", model.getName(), date, health);
     }
 
-    // ── Helper ────────────────────────────────────────────────────────────────
 
     private String toJson(Map<String, ?> map) {
         try {

@@ -23,6 +23,16 @@ public class AiModelDtos {
         @NotBlank(message = "API key is required")
         private String apiKey;
 
+        @NotBlank(message = "API base URL is required (e.g. https://api.openai.com)")
+        @Size(max = 500)
+        private String apiBaseUrl;
+
+        private String systemPrompt;
+
+        private Double temperature;
+
+        private Integer maxTokens;
+
         private String description;
 
         private boolean defaultModel = false;
@@ -39,6 +49,16 @@ public class AiModelDtos {
         @NotBlank(message = "Provider is required")
         @Size(max = 100)
         private String provider;
+
+        @NotBlank(message = "API base URL is required (e.g. https://api.openai.com)")
+        @Size(max = 500)
+        private String apiBaseUrl;
+
+        private String systemPrompt;
+
+        private Double temperature;
+
+        private Integer maxTokens;
 
         private String description;
     }
@@ -62,6 +82,10 @@ public class AiModelDtos {
         private boolean defaultModel;
 
         private String apiKeyMask;
+        private String apiBaseUrl;
+        private String systemPrompt;
+        private Double temperature;
+        private Integer maxTokens;
 
         private String createdByEmail;
         private LocalDateTime createdAt;

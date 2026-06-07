@@ -102,7 +102,6 @@ public class AiModelController {
         return ResponseEntity.accepted()
                 .body(Map.of(
                         "affected", migrated,
-                        "message", migrated + " repository/repositories migrated to the default model"
-                ));
+                        "message", migrated + " repository/repositories migrated to the default model"));
     }
 }

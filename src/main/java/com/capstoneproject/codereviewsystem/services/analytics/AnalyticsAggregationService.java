@@ -17,10 +17,6 @@ import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 
-/**
- * Core computation service.
- * All metric calculations live here — controllers and the snapshot scheduler both call this.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -31,8 +27,6 @@ public class AnalyticsAggregationService {
     private final AiModelReviewRecordRepository reviewRecordRepo;
     private final CodeRepositoryRepository     repoRepository;
     private final AiModelDailySnapshotRepository snapshotRepo;
-
-    // ── Usage Metrics ─────────────────────────────────────────────────────────
 
     public UsageMetrics computeUsageMetrics(AiModel model) {
         LocalDate today     = LocalDate.now();
@@ -51,7 +45,6 @@ public class AnalyticsAggregationService {
 
         long totalTokens  = usageStatsRepo.sumTotalTokens(model, LocalDate.of(2020, 1, 1), today);
 
-        // Input/output split — aggregate from daily stats
         long inputTokens = usageStatsRepo
                 .findByAiModelAndStatDateBetweenOrderByStatDateAsc(model, LocalDate.of(2020, 1, 1), today)
                 .stream().mapToLong(AiModelUsageStats::getInputTokens).sum();
@@ -73,8 +66,6 @@ public class AnalyticsAggregationService {
                 .build();
     }
 
-    // ── Performance Metrics ───────────────────────────────────────────────────
-
     public PerformanceMetrics computePerformanceMetrics(AiModel model) {
         LocalDateTime from = LocalDateTime.now().minusDays(30);
         LocalDateTime to   = LocalDateTime.now();
@@ -91,7 +82,6 @@ public class AnalyticsAggregationService {
         Double avgLatency = reviewRecordRepo.avgLatencyByModelAndDateRange(model, from, to);
         long   p95        = computeP95Latency(model, from, to);
 
-        // Avg review generation time from daily stats
         double avgGenMs = usageStatsRepo
                 .findByAiModelAndStatDateBetweenOrderByStatDateAsc(
                         model, from.toLocalDate(), to.toLocalDate())
@@ -99,7 +89,6 @@ public class AnalyticsAggregationService {
                 .mapToLong(AiModelUsageStats::getAvgReviewGenerationMs)
                 .average().orElse(0.0);
 
-        // Health status from latest snapshot
         ModelHealthStatus health = snapshotRepo.findTopByAiModelOrderBySnapshotDateDesc(model)
                 .map(AiModelDailySnapshot::getHealthStatus)
                 .orElse(ModelHealthStatus.HEALTHY);
@@ -118,7 +107,6 @@ public class AnalyticsAggregationService {
                 .build();
     }
 
-    // ── Quality Metrics ───────────────────────────────────────────────────────
 
     public QualityMetrics computeQualityMetrics(AiModel model) {
         LocalDateTime from = LocalDateTime.now().minusDays(30);
@@ -131,7 +119,6 @@ public class AnalyticsAggregationService {
         long   fps       = reviewRecordRepo.countFalsePositives(model, from, to);
         long   fns       = reviewRecordRepo.countFalseNegatives(model, from, to);
 
-        // Helpful % and acceptance rate from daily stats
         long helpfulSum  = usageStatsRepo
                 .findByAiModelAndStatDateBetweenOrderByStatDateAsc(
                         model, from.toLocalDate(), to.toLocalDate())
@@ -158,8 +145,6 @@ public class AnalyticsAggregationService {
                 .build();
     }
 
-    // ── Cost Metrics ──────────────────────────────────────────────────────────
-
     public CostMetrics computeCostMetrics(AiModel model) {
         LocalDate today      = LocalDate.now();
         LocalDate monthStart = today.withDayOfMonth(1);
@@ -182,7 +167,6 @@ public class AnalyticsAggregationService {
                 ? totalCost.divide(BigDecimal.valueOf(totalRepos), 6, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
 
-        // Monthly projection: extrapolate current month spend to end of month
         int daysInMonth  = monthEnd.getDayOfMonth();
         int daysPassed   = today.getDayOfMonth();
         BigDecimal projection = daysPassed > 0
@@ -202,8 +186,6 @@ public class AnalyticsAggregationService {
                 .estimatedMonthlyProjection(projection)
                 .build();
     }
-
-    // ── Adoption Metrics ──────────────────────────────────────────────────────
 
     public AdoptionMetrics computeAdoptionMetrics(AiModel model,
                                                    long totalSystemRepos) {
@@ -245,16 +227,12 @@ public class AnalyticsAggregationService {
                 .build();
     }
 
-    // ── P95 Latency ───────────────────────────────────────────────────────────
-
     public long computeP95Latency(AiModel model, LocalDateTime from, LocalDateTime to) {
         List<Long> latencies = reviewRecordRepo.findLatenciesBetween(model, from, to);
         if (latencies.isEmpty()) return 0L;
         int index = (int) Math.ceil(latencies.size() * 0.95) - 1;
         return latencies.get(Math.min(index, latencies.size() - 1));
     }
-
-    // ── Health Status Computation ─────────────────────────────────────────────
 
     public ModelHealthStatus computeHealthStatus(AiModel model) {
         LocalDateTime since = LocalDateTime.now().minusHours(1);
@@ -275,7 +253,6 @@ public class AnalyticsAggregationService {
         return ModelHealthStatus.OFFLINE;
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     public AiModel requireModel(Long modelId) {
         return modelRepository.findByIdAndDeletedFalse(modelId)
@@ -288,7 +265,6 @@ public class AnalyticsAggregationService {
                 .doubleValue();
     }
 
-    // Workaround: Optional.ofNullable for repo Optional return
     private <T> java.util.Optional<T> Optional(java.util.Optional<T> opt) {
         return opt;
     }

@@ -39,10 +39,8 @@ public class UserService {
     public ProfileResponse getProfile(Long userId) {
         User user = findUser(userId);
 
-        // Webhook (GitHub/GitLab/Bitbucket) commits
         long webhookReviews = commitHistoryRepository.countByUser(user);
 
-        // ZIP_UI + CLI combined — or split by source if needed
         long projectCommits = projectCommitRepository.countByUserId(userId);
 
         return ProfileResponse.builder()

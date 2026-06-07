@@ -13,6 +13,7 @@ import com.capstoneproject.codereviewsystem.repos.AiModelRepository;
 import com.capstoneproject.codereviewsystem.repos.CodeRepositoryRepository;
 import com.capstoneproject.codereviewsystem.repos.CommitHistoryRepository;
 import com.capstoneproject.codereviewsystem.repos.UserRepository;
+import com.capstoneproject.codereviewsystem.services.encryption.EncryptionService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,8 +34,8 @@ public class CodeRepositoryService {
     private final CodeRepositoryRepository repoRepository;
     private final CommitHistoryRepository commitHistoryRepository;
     private final UserRepository userRepository;
-    private final AiModelRepository aiModelRepository;   // NEW
-
+    private final AiModelRepository aiModelRepository;
+    private final EncryptionService encryptionService;
     @Transactional
     public CodeRepositoryResponse addRepository(CodeRepositoryRequest request, Long userId) {
         User user = userRepository.findById(userId)
@@ -54,17 +55,15 @@ public class CodeRepositoryService {
                 .title(request.getTitle())
                 .repoUrl(request.getRepoUrl())
                 .provider(provider)
-                .accessToken(request.getAccessToken())
+                .accessToken(request.getAccessToken() == null? null: encryptionService.encrypt(request.getAccessToken()))
                 .defaultBranch(request.getBranch() != null ? request.getBranch() : "main")
                 .webhookSecret(webhookSecret)
                 .user(user)
-                .aiModel(aiModel)        // NEW
+                .aiModel(aiModel)       
                 .build();
 
         repoRepository.save(repo);
-        log.info("Repo added: {} by user: {} with model: {}",
-                request.getRepoUrl(), userId,
-                aiModel != null ? aiModel.getName() : "none");
+        log.info("Repo added: {} by user: {} with model: {}",request.getRepoUrl(), userId,aiModel != null ? aiModel.getName() : "none");
 
         return CodeRepositoryResponse.builder()
                 .id(repo.getId())
@@ -110,7 +109,8 @@ public class CodeRepositoryService {
         CodeRepository repo = repoRepository.findByIdAndUser(repoId, user)
                 .orElseThrow(() -> new BadRequestException("Repository not found"));
 
-        String token = (accessToken != null && !accessToken.isBlank()) ? accessToken : null;
+        String token = (accessToken != null && !accessToken.isBlank())? encryptionService.encrypt(accessToken) : null;
+
         repo.setAccessToken(token);
         repoRepository.save(repo);
 
@@ -225,7 +225,7 @@ public class CodeRepositoryService {
                 .aiModelId(model != null ? model.getId() : null)
                 .aiModelName(model != null ? model.getName() : null)
                 .aiModelProvider(model != null ? model.getProvider() : null)
-                // webhookSecret and webhookUrl intentionally NOT set here
+                .webhookSecret(null)
                 .build();
     }
 

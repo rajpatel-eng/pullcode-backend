@@ -96,7 +96,7 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
 
         cookie.setPath("/");
         cookie.setHttpOnly(true);
-        cookie.setSecure(true); // use HTTPS in production
+        cookie.setSecure(true);
         cookie.setMaxAge(maxAge);
 
         response.addCookie(cookie);

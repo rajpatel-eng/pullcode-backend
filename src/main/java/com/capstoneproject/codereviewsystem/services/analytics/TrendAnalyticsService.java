@@ -27,7 +27,6 @@ public class TrendAnalyticsService {
     private final AiModelRepository modelRepository;
     private final ObjectMapper objectMapper;
 
-    // ── Single-model trends ───────────────────────────────────────────────────
 
     public TrendData usageTrend(Long modelId, TrendPeriod period) {
         AiModel model = requireModel(modelId);
@@ -127,8 +126,6 @@ public class TrendAnalyticsService {
                 .build();
     }
 
-    // ── Multi-model comparison trends ─────────────────────────────────────────
-
     public Map<String, TrendData> usageTrendsForModels(List<Long> modelIds, TrendPeriod period) {
         Map<String, TrendData> result = new LinkedHashMap<>();
         for (Long id : modelIds) {
@@ -153,14 +150,11 @@ public class TrendAnalyticsService {
         return result;
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
     @FunctionalInterface
     private interface DateValueFn {
         double get(LocalDate date);
     }
 
-    /** Fills every day in [from, to] with a value — zero-fills missing days */
     private List<TrendPoint> buildDateSeries(LocalDate from, LocalDate to, DateValueFn fn) {
         List<TrendPoint> points = new ArrayList<>();
         LocalDate current = from;

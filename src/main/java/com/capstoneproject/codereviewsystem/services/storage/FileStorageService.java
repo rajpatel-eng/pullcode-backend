@@ -14,7 +14,6 @@ public class FileStorageService {
 
     private final StorageProvider storageProvider;
 
-    /** Relative path template: <source>/<projectId>/<submissionId>/<filePath> */
     private String buildPath(String source, String projectId, String submissionId, String filePath) {
         return String.join("/", source, projectId, submissionId, filePath);
     }

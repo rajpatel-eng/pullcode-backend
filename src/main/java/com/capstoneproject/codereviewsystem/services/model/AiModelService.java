@@ -45,6 +45,10 @@ public class AiModelService {
                 .name(req.getName())
                 .provider(req.getProvider())
                 .encryptedApiKey(encryptionService.encrypt(req.getApiKey()))
+                .apiBaseUrl(req.getApiBaseUrl())
+                .systemPrompt(req.getSystemPrompt())
+                .temperature(req.getTemperature())
+                .maxTokens(req.getMaxTokens())
                 .description(req.getDescription())
                 .active(true)
                 .defaultModel(false)
@@ -54,7 +58,6 @@ public class AiModelService {
         if (!modelRepository.existsByDefaultModelTrueAndDeletedFalse()) {
             model.setDefaultModel(true);
         } else if (req.isDefaultModel()) {
-            // Requested to be default — demote current default
             demoteCurrentDefault();
             model.setDefaultModel(true);
         }
@@ -98,6 +101,10 @@ public class AiModelService {
 
         model.setName(req.getName());
         model.setProvider(req.getProvider());
+        model.setApiBaseUrl(req.getApiBaseUrl());
+        model.setSystemPrompt(req.getSystemPrompt());
+        model.setTemperature(req.getTemperature());
+        model.setMaxTokens(req.getMaxTokens());
         model.setDescription(req.getDescription());
         modelRepository.save(model);
 
@@ -113,7 +120,6 @@ public class AiModelService {
         model.setEncryptedApiKey(encryptionService.encrypt(newRawKey));
         modelRepository.save(model);
         log.info("API key rotated for model {} by {}", id, actor.getEmail());
-        // Log the rotation action only — key value itself is NEVER logged
         auditService.log(AuditAction.AI_MODEL_API_KEY_ROTATED, actor, "AI_MODEL", id,
                 Map.of("modelName", model.getName()),
                 Map.of("modelName", model.getName(), "note", "API key replaced"));
@@ -250,7 +256,11 @@ public class AiModelService {
                 .description(m.getDescription())
                 .active(m.isActive())
                 .defaultModel(m.isDefaultModel())
-                .apiKeyMask("••••••••")          // NEVER expose actual key
+                .apiKeyMask("••••••••")         
+                .apiBaseUrl(m.getApiBaseUrl())
+                .systemPrompt(m.getSystemPrompt())
+                .temperature(m.getTemperature())
+                .maxTokens(m.getMaxTokens())
                 .createdByEmail(m.getCreatedBy() != null ? m.getCreatedBy().getEmail() : null)
                 .createdAt(m.getCreatedAt())
                 .updatedAt(m.getUpdatedAt())
@@ -265,7 +275,6 @@ public class AiModelService {
                 "active",       m.isActive(),
                 "defaultModel", m.isDefaultModel(),
                 "deleted",      m.isDeleted()
-                // encryptedApiKey is intentionally omitted
         );
     }
 }

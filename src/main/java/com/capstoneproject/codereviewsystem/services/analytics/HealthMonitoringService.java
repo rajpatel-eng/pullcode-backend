@@ -36,7 +36,6 @@ public class HealthMonitoringService {
         private final EmailService emailService;
         private final EmailContentService emailContentService;
 
-        // Configurable thresholds (can be moved to application.yml)
         @Value("${app.analytics.threshold.success-rate:80.0}")
         private double successRateThreshold;
 
@@ -55,7 +54,6 @@ public class HealthMonitoringService {
         @Value("${app.analytics.threshold.timeout-count:20}")
         private int timeoutThreshold;
 
-        // ── Health Status for a single model ─────────────────────────────────────
 
         public HealthStatusResponse getHealthStatus(AiModel model) {
                 LocalDateTime since = LocalDateTime.now().minusHours(1);
@@ -96,7 +94,6 @@ public class HealthMonitoringService {
                                 .build();
         }
 
-        // ── Evaluate thresholds and create alerts ────────────────────────────────
 
         @Transactional
         public void evaluateAndAlert(AiModel model) {
@@ -121,7 +118,6 @@ public class HealthMonitoringService {
 
                 List<AiModelHealthAlert> newAlerts = new ArrayList<>();
 
-                // Success rate alert
                 if (successRate < successRateThreshold) {
                         newAlerts.add(createAlert(model,
                                         AlertType.SUCCESS_RATE_LOW,
@@ -132,7 +128,6 @@ public class HealthMonitoringService {
                                         String.valueOf(Math.round(successRateThreshold))));
                 }
 
-                // Error rate alert
                 if (errorRate > errorRateThreshold) {
                         newAlerts.add(createAlert(model,
                                         AlertType.ERROR_RATE_HIGH,
@@ -143,7 +138,6 @@ public class HealthMonitoringService {
                                         String.valueOf(Math.round(errorRateThreshold))));
                 }
 
-                // Latency alert
                 if (avgLatency > latencyThresholdMs) {
                         newAlerts.add(createAlert(model,
                                         AlertType.LATENCY_HIGH,
@@ -154,7 +148,6 @@ public class HealthMonitoringService {
                                         String.valueOf(Math.round(latencyThresholdMs))));
                 }
 
-                // Timeout alert
                 if (timeouts >= timeoutThreshold) {
                         newAlerts.add(createAlert(model,
                                         AlertType.TIMEOUT_HIGH,
@@ -165,7 +158,6 @@ public class HealthMonitoringService {
                                         String.valueOf(timeoutThreshold)));
                 }
 
-                // Rate limit alert
                 if (rateLimits >= rateLimitThreshold) {
                         newAlerts.add(createAlert(model,
                                         AlertType.RATE_LIMIT_HIGH,
@@ -176,20 +168,16 @@ public class HealthMonitoringService {
                                         String.valueOf(rateLimitThreshold)));
                 }
 
-                // Cost spike alert (compare today vs 7-day average)
                 checkCostSpike(model).ifPresent(newAlerts::add);
 
-                // Save new alerts and notify
                 for (AiModelHealthAlert alert : newAlerts) {
                         alertRepository.save(alert);
                         sendAlertNotification(model, alert);
                 }
 
-                // Auto-resolve alerts that are no longer firing
                 autoResolveAlerts(model, newAlerts);
         }
 
-        // ── List all alerts ───────────────────────────────────────────────────────
 
         public List<AlertSummary> getAllUnresolvedAlerts() {
                 return alertRepository.findByResolvedFalseOrderByCreatedAtDesc()
@@ -213,7 +201,6 @@ public class HealthMonitoringService {
                 });
         }
 
-        // ── Helpers ───────────────────────────────────────────────────────────────
 
         private ModelHealthStatus computeStatus(double successRate,
                         double errorRate,
@@ -230,7 +217,6 @@ public class HealthMonitoringService {
         private AiModelHealthAlert createAlert(AiModel model, AlertType type,
                         AlertSeverity severity, String message,
                         String triggerValue, String thresholdValue) {
-                // Deduplicate: skip if same unresolved alert already exists
                 if (alertRepository.existsByAiModelAndAlertTypeAndResolvedFalse(model, type)) {
                         return null;
                 }
@@ -310,7 +296,6 @@ public class HealthMonitoringService {
                 if (alert == null || alert.isNotified())
                         return;
                 try {
-                        // Notify all ADMIN and IAM users
                         userRepository.findByRole(
                                         Role.ROLE_ADMIN,
                                         PageRequest.of(0, 50))

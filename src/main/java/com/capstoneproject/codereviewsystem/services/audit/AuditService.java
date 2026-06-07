@@ -63,7 +63,6 @@ public class AuditService {
         if (value == null) return null;
         try {
             Map<String, Object> map = objectMapper.convertValue(value, new TypeReference<>() {});
-            // Replace sensitive keys with redaction marker
             SENSITIVE_FIELDS.forEach(field -> {
                 if (map.containsKey(field)) {
                     map.put(field, "[REDACTED]");

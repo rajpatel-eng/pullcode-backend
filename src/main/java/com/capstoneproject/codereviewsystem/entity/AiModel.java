@@ -41,6 +41,29 @@ public class AiModel {
     @Builder.Default
     private boolean deleted = false;
 
+
+    @Column(length = 500)
+    private String apiBaseUrl;
+
+    @Column(columnDefinition = "TEXT")
+    private String systemPrompt;
+
+    @Column
+    private Double temperature;
+
+    @Column
+    private Integer maxTokens;
+
+
+    public double effectiveTemperature() {
+        return temperature != null ? temperature : 0.1;
+    }
+
+    public int effectiveMaxTokens() {
+        return maxTokens != null ? maxTokens : 4096;
+    }
+
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_id", nullable = false)
     private User createdBy;
