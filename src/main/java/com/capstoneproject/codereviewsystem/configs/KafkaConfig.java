@@ -1,6 +1,7 @@
 package com.capstoneproject.codereviewsystem.configs;
 
 import com.capstoneproject.codereviewsystem.kafka.KafkaTopics;
+import com.capstoneproject.codereviewsystem.kafka.events.EmailNotificationEvent;
 import com.capstoneproject.codereviewsystem.kafka.events.ReviewReadyEvent;
 import com.capstoneproject.codereviewsystem.kafka.events.ReviewSubmittedEvent;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -50,6 +51,11 @@ public class KafkaConfig {
                 .partitions(3)
                 .replicas(1)
                 .build();
+    }
+
+    @Bean
+    public NewTopic emailNotificationsTopic() {
+        return TopicBuilder.name(KafkaTopics.EMAIL_NOTIFICATIONS).partitions(3).replicas(1).build();
     }
 
     @Bean
@@ -148,6 +154,23 @@ public class KafkaConfig {
     public ConcurrentKafkaListenerContainerFactory<String, ReviewReadyEvent> readyKafkaListenerContainerFactory() {
         var f = new ConcurrentKafkaListenerContainerFactory<String, ReviewReadyEvent>();
         f.setConsumerFactory(readyConsumerFactory());
+        f.setConcurrency(3);
+        f.setCommonErrorHandler(kafkaErrorHandler(kafkaTemplate()));
+        return f;
+    }
+
+    @Bean
+    public ConsumerFactory<String, EmailNotificationEvent> emailConsumerFactory() {
+        return new DefaultKafkaConsumerFactory<>(
+                consumerProps("email-notification-group"),
+                new StringDeserializer(),
+                new JsonDeserializer<>(EmailNotificationEvent.class, false));
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, EmailNotificationEvent> emailKafkaListenerContainerFactory() {
+        var f = new ConcurrentKafkaListenerContainerFactory<String, EmailNotificationEvent>();
+        f.setConsumerFactory(emailConsumerFactory());
         f.setConcurrency(3);
         f.setCommonErrorHandler(kafkaErrorHandler(kafkaTemplate()));
         return f;

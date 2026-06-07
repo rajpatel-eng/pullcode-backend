@@ -106,7 +106,21 @@ public class ZipStorageService {
         String latestPath = latestPath(userId, projectId);
         storageProvider.deleteDirectory(latestPath);
         storageProvider.copyDirectory(newStoragePath, latestPath);
+
+
+        deleteOldSubmissions(userId, projectId, newStoragePath);
+
         log.info("Latest folder updated for project: {}", projectId);
+    }
+
+
+    private void deleteOldSubmissions(Long userId, Long projectId, String currentSubmissionPath) {
+        try {
+            storageProvider.deleteDirectory(currentSubmissionPath);
+            log.info("Deleted current submission folder after copying to latest: {}", currentSubmissionPath);
+        } catch (IOException e) {
+            log.warn("Could not delete current submission folder {}: {}", currentSubmissionPath, e.getMessage());
+        }
     }
 
     public void deleteUploadFolder(String storagePath) {

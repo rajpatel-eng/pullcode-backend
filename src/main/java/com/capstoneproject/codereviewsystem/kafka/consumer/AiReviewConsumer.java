@@ -3,12 +3,17 @@ package com.capstoneproject.codereviewsystem.kafka.consumer;
 import com.capstoneproject.codereviewsystem.entity.AiModel;
 import com.capstoneproject.codereviewsystem.entity.CommitHistory;
 import com.capstoneproject.codereviewsystem.entity.ProjectCommit;
+import com.capstoneproject.codereviewsystem.entity.User;
 import com.capstoneproject.codereviewsystem.kafka.KafkaTopics;
 import com.capstoneproject.codereviewsystem.kafka.events.ReviewReadyEvent;
+import com.capstoneproject.codereviewsystem.kafka.producer.EmailNotificationProducer;
 import com.capstoneproject.codereviewsystem.repos.AiModelRepository;
 import com.capstoneproject.codereviewsystem.repos.CommitHistoryRepository;
 import com.capstoneproject.codereviewsystem.repos.ProjectCommitRepository;
+import com.capstoneproject.codereviewsystem.repos.UserRepository;
 import com.capstoneproject.codereviewsystem.services.encryption.EncryptionService;
+import com.capstoneproject.codereviewsystem.services.pdf.ReviewPdfReportService;
+import com.capstoneproject.codereviewsystem.services.pr.GitPrCommentService;
 import com.capstoneproject.codereviewsystem.services.review.*;
 import com.capstoneproject.codereviewsystem.sse.ReviewProgressEvent;
 import com.capstoneproject.codereviewsystem.sse.SseEmitterRegistry;
@@ -39,6 +44,10 @@ public class AiReviewConsumer {
     private final TempReviewStager          tempStager;
     private final SseEmitterRegistry        sseRegistry;
     private final RedisTemplate<String, String> redisTemplate;
+    private final ReviewPdfReportService    pdfReportService;
+    private final EmailNotificationProducer emailProducer;
+    private final GitPrCommentService       gitPrCommentService;
+    private final UserRepository            userRepository;
 
     @Value("${app.storage.local.base-path:uploads}")
     private String basePath;
@@ -81,9 +90,9 @@ public class AiReviewConsumer {
 
             fileReviewService.saveReviewResults(
                     commitHistory, projectCommit,
-                    null,           // no model
-                    Map.of(),       // no fresh errors
-                    List.of(),      // no changed files sent to AI
+                    null,          
+                    Map.of(),       
+                    List.of(),     
                     mergeAllFiles(event),
                     hashSnapshot);
 
@@ -197,6 +206,14 @@ public class AiReviewConsumer {
                 ))
                 .build());
 
+        sendReviewReportEmail(event, commitHistory, projectCommit, model, freshCount, freshErrors);
+
+        if (commitHistory != null && freshCount > 0) {
+            postPrComment(event, commitHistory);
+        }
+
+        redisTemplate.opsForValue().set(key, "processed", Duration.ofDays(7));
+
         log.info("AiReview complete: eventId={} freshIssues={} latencyMs={}",
                 event.getEventId(), freshCount, latencyMs);
     }
@@ -226,5 +243,66 @@ public class AiReviewConsumer {
                 .message("❌ " + message)
                 .source(event.getSource().name())
                 .build());
+    }
+
+    private void sendReviewReportEmail(
+            ReviewReadyEvent event,
+            CommitHistory commitHistory,
+            ProjectCommit projectCommit,
+            AiModel model,
+            int freshCount,
+            Map<String, List<FileReviewService.ParsedError>> freshErrors) {
+        try {
+            // Resolve user e-mail and name
+            User user = userRepository.findById(event.getUserId()).orElse(null);
+            if (user == null || user.getEmail() == null) {
+                log.warn("Cannot send review report email: user {} not found", event.getUserId());
+                return;
+            }
+
+            String commitId = commitHistory != null
+                    ? commitHistory.getCommitId()
+                    : (projectCommit != null ? projectCommit.getCommitHash() : "unknown");
+
+            com.capstoneproject.codereviewsystem.dtos.FileReviewDtos.CommitReviewResponse reviewResponse;
+            if (commitHistory != null) {
+                reviewResponse = fileReviewService.getCommitHistoryReview(
+                        commitHistory.getId(), event.getUserId());
+            } else if (projectCommit != null) {
+                reviewResponse = fileReviewService.getProjectCommitReview(
+                        projectCommit.getId(), event.getUserId());
+            } else {
+                log.warn("Cannot build review response for PDF — no commit entity");
+                return;
+            }
+
+            String pdfBase64  = pdfReportService.generateBase64Pdf(reviewResponse, user.getName());
+            String pdfFileName = "review-" + commitId.substring(0, Math.min(7, commitId.length())) + ".pdf";
+
+            emailProducer.sendReviewReport(user.getEmail(), user.getName(),
+                    commitId, pdfBase64, pdfFileName);
+
+            log.info("Review report email queued: user={} commitId={}", user.getId(), commitId);
+        } catch (Exception e) {
+            log.error("Failed to send review report email for event {}: {}", event.getEventId(), e.getMessage());
+        }
+    }
+
+    private void postPrComment(ReviewReadyEvent event, CommitHistory commitHistory) {
+        try {
+            com.capstoneproject.codereviewsystem.entity.CodeRepository repo =
+                    commitHistory.getRepository();
+            if (repo == null || repo.getAccessToken() == null) return;
+
+            String decryptedToken = encryptionService.decrypt(repo.getAccessToken());
+
+            com.capstoneproject.codereviewsystem.dtos.FileReviewDtos.CommitReviewResponse review =
+                    fileReviewService.getCommitHistoryReview(commitHistory.getId(), event.getUserId());
+
+            gitPrCommentService.postReviewComment(repo, decryptedToken,
+                    commitHistory.getCommitId(), review);
+        } catch (Exception e) {
+            log.error("Failed to post PR comment for event {}: {}", event.getEventId(), e.getMessage());
+        }
     }
 }

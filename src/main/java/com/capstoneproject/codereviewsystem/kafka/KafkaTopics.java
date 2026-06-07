@@ -8,4 +8,6 @@ public final class KafkaTopics {
     public static final String REVIEW_CLEAN     = "review.clean";
 
     public static final String REVIEW_READY     = "review.ready";
+    
+    public static final String EMAIL_NOTIFICATIONS   = "email.notifications";
 }
