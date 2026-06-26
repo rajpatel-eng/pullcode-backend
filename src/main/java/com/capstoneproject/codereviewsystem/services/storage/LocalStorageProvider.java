@@ -1,5 +1,6 @@
 package com.capstoneproject.codereviewsystem.services.storage;
 
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
@@ -14,7 +15,7 @@ import java.util.Comparator;
 
 @Slf4j
 @Service
-@Profile({"local", "default"})  
+@Profile({"local", "default"})
 public class LocalStorageProvider implements StorageProvider {
 
     @Value("${app.storage.local.base-path:uploads}")
@@ -23,9 +24,17 @@ public class LocalStorageProvider implements StorageProvider {
     @Value("${app.storage.local.public-url:http://localhost:8080}")
     private String publicBaseUrl;
 
+    private Path absoluteBase;
+
+    @PostConstruct
+    public void init() throws IOException {
+        absoluteBase = Paths.get(basePath).toAbsolutePath().normalize();
+        Files.createDirectories(absoluteBase);
+        log.info("LocalStorageProvider initialised — base path: {}", absoluteBase);
+    }
 
     private Path resolve(String relativePath) {
-        return Paths.get(basePath, relativePath.replace("/", File.separator));
+        return absoluteBase.resolve(relativePath.replace("/", File.separator)).normalize();
     }
 
 
@@ -42,7 +51,7 @@ public class LocalStorageProvider implements StorageProvider {
     public void saveFile(String relativePath, MultipartFile file) throws IOException {
         Path target = resolve(relativePath);
         Files.createDirectories(target.getParent());
-        file.transferTo(target.toFile());
+        file.transferTo(target.toAbsolutePath().toFile());
         log.debug("Saved file → {}", target);
     }
 

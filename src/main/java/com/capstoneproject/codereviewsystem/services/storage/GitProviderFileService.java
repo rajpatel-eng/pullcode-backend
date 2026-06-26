@@ -1,6 +1,7 @@
 package com.capstoneproject.codereviewsystem.services.storage;
 
 import com.capstoneproject.codereviewsystem.entity.CodeRepository;
+import com.capstoneproject.codereviewsystem.services.encryption.EncryptionService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ public class GitProviderFileService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     private final FileStorageService fileStorageService;
+    private final EncryptionService encryptionService;
 
 
     public void fetchAndStoreFullProject(CodeRepository repo, String commitId,
@@ -123,8 +125,9 @@ public class GitProviderFileService {
             );
 
             HttpHeaders headers = new HttpHeaders();
-            if (repo.getAccessToken() != null && !repo.getAccessToken().isBlank()) {
-                headers.set("PRIVATE-TOKEN", repo.getAccessToken());
+            String token = decryptToken(repo);
+            if (token != null) {
+                headers.set("PRIVATE-TOKEN", token);
             }
 
             ResponseEntity<String> response = restTemplate.exchange(
@@ -154,8 +157,9 @@ public class GitProviderFileService {
             );
 
             HttpHeaders headers = new HttpHeaders();
-            if (repo.getAccessToken() != null && !repo.getAccessToken().isBlank()) {
-                headers.set("Authorization", "Bearer " + repo.getAccessToken());
+            String token = decryptToken(repo);
+            if (token != null) {
+                headers.set("Authorization", "Bearer " + token);
             }
 
             collectBitbucketPaths(apiUrl, headers, paths, ownerRepo, commitId);
@@ -237,8 +241,9 @@ public class GitProviderFileService {
                     encodedProject, encodedFile, commitId
             );
             HttpHeaders headers = new HttpHeaders();
-            if (repo.getAccessToken() != null && !repo.getAccessToken().isBlank()) {
-                headers.set("PRIVATE-TOKEN", repo.getAccessToken());
+            String token = decryptToken(repo);
+            if (token != null) {
+                headers.set("PRIVATE-TOKEN", token);
             }
             ResponseEntity<String> response = restTemplate.exchange(
                     apiUrl, HttpMethod.GET, new HttpEntity<>(headers), String.class
@@ -261,8 +266,9 @@ public class GitProviderFileService {
                     ownerRepo, commitId, filePath
             );
             HttpHeaders headers = new HttpHeaders();
-            if (repo.getAccessToken() != null && !repo.getAccessToken().isBlank()) {
-                headers.set("Authorization", "Bearer " + repo.getAccessToken());
+            String token = decryptToken(repo);
+            if (token != null) {
+                headers.set("Authorization", "Bearer " + token);
             }
             ResponseEntity<String> response = restTemplate.exchange(
                     apiUrl, HttpMethod.GET, new HttpEntity<>(headers), String.class
@@ -282,10 +288,22 @@ public class GitProviderFileService {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Accept", "application/vnd.github.v3+json");
         headers.set("User-Agent", "CodeReviewSystem");
-        if (repo.getAccessToken() != null && !repo.getAccessToken().isBlank()) {
-            headers.set("Authorization", "Bearer " + repo.getAccessToken());
+        String token = decryptToken(repo);
+        if (token != null) {
+            headers.set("Authorization", "Bearer " + token);
         }
         return headers;
+    }
+
+    /**
+     * Decrypts the stored access token. Returns null if no token is set.
+     */
+    private String decryptToken(CodeRepository repo) {
+        String token = repo.getAccessToken();
+        if (token == null || token.isBlank()) {
+            return null;
+        }
+        return encryptionService.decrypt(token);
     }
 
     private String extractOwnerRepo(String repoUrl, String domain) {

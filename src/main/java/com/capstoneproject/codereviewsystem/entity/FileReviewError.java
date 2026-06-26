@@ -34,13 +34,13 @@ public class FileReviewError {
     private ProjectCommit projectCommit;
 
 
-    @Column(name = "col_number", nullable = false)
+    @Column(nullable = false)
     @Builder.Default
-    private int column = 0;
+    private int columnNumber = 0;
 
-    @Column(name = "line_number", nullable = false) 
+    @Column(nullable = false) 
     @Builder.Default
-    private int line = 0;
+    private int lineNumber = 0;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

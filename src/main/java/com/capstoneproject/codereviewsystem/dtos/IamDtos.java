@@ -1,14 +1,15 @@
 package com.capstoneproject.codereviewsystem.dtos;
 
 import com.capstoneproject.codereviewsystem.dtos.enums.UserStatus;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 public class IamDtos {
-
 
     @Data
     public static class CreateRequest {
@@ -53,11 +54,20 @@ public class IamDtos {
     @Data
     @Builder
     public static class Response {
+
         private Long id;
+
         private String name;
+
         private String email;
+
+        // Profile image URL returned to frontend
+        private String avatarUrl;
+
         private UserStatus status;
+
         private String createdByEmail;
+
         private LocalDateTime createdAt;
     }
 }

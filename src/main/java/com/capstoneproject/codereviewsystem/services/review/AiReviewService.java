@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -22,42 +21,69 @@ public class AiReviewService {
     private final RestTemplate restTemplate;
 
     public String review(AiModel model, String apiKey, String prompt) {
-        String url          = buildUrl(model);
+        String url = buildUrl(model);
         HttpEntity<Map<String, Object>> request = buildRequest(model, apiKey, prompt);
 
         log.debug("Calling AI endpoint: model={} provider={} url={}",
                 model.getName(), model.getProvider(), url);
 
-        try {
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    url, HttpMethod.POST, request, Map.class);
+        int maxRetries = 3;
+        long backoffMs = 2000;
 
-            return extractContent(response.getBody(), model);
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                ResponseEntity<Map> response = restTemplate.exchange(
+                        url, HttpMethod.POST, request, Map.class);
 
-        } catch (HttpClientErrorException e) {
-            throw new AiCallException(
-                    "AI provider rejected the request [" + e.getStatusCode() + "]: "
-                    + summarise(e.getResponseBodyAsString()), e);
+                return extractContent(response.getBody(), model);
 
-        } catch (HttpServerErrorException e) {
-            throw new AiCallException(
-                    "AI provider returned a server error [" + e.getStatusCode() + "]: "
-                    + summarise(e.getResponseBodyAsString()), e);
+            } catch (HttpServerErrorException e) {
+                boolean isServiceUnavailable = e.getStatusCode().value() == 503;
+                boolean lastAttempt = attempt == maxRetries;
 
-        } catch (Exception e) {
-            throw new AiCallException(
-                    "Unexpected error calling AI provider (" + model.getProvider() + "): "
-                    + e.getMessage(), e);
+                if (isServiceUnavailable && !lastAttempt) {
+                    log.warn("AI provider overloaded (503), retrying in {}ms (attempt {}/{})",
+                            backoffMs, attempt, maxRetries);
+                    try {
+                        Thread.sleep(backoffMs);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new AiCallException("Interrupted during retry backoff", ie);
+                    }
+                    backoffMs *= 2; // exponential backoff: 2s, 4s, 8s
+                    continue;
+                }
+
+                throw new AiCallException(
+                        "AI provider returned a server error [" + e.getStatusCode() + "]: "
+                                + summarise(e.getResponseBodyAsString()),
+                        e);
+
+            } catch (HttpClientErrorException e) {
+                throw new AiCallException(
+                        "AI provider rejected the request [" + e.getStatusCode() + "]: "
+                                + summarise(e.getResponseBodyAsString()),
+                        e);
+
+            } catch (Exception e) {
+                throw new AiCallException(
+                        "Unexpected error calling AI provider (" + model.getProvider() + "): "
+                                + e.getMessage(),
+                        e);
+            }
         }
+
+        throw new AiCallException("AI provider unavailable after " + maxRetries + " attempts");
     }
 
     private String buildUrl(AiModel model) {
-        if (model.getApiBaseUrl() == null || model.getApiBaseUrl().isBlank()) {
-            throw new AiCallException(
-                "apiBaseUrl is not configured for model \"" + model.getName() + "\" ("
-                + model.getProvider() + ") — set it in the Admin panel before using this model");
-        }
         String base = model.getApiBaseUrl().strip().replaceAll("/+$", "");
+        if (base.endsWith("/chat/completions")) {
+            return base;
+        }
+        if (base.contains("generativelanguage.googleapis.com")) {
+            return base + "/chat/completions";
+        }
         return base + "/v1/chat/completions";
     }
 
@@ -77,22 +103,19 @@ public class AiReviewService {
 
         if (model.getSystemPrompt() != null && !model.getSystemPrompt().isBlank()) {
             messages.add(Map.of(
-                    "role",    "system",
-                    "content", model.getSystemPrompt()
-            ));
+                    "role", "system",
+                    "content", model.getSystemPrompt()));
         }
 
         messages.add(Map.of(
-                "role",    "user",
-                "content", userPrompt
-        ));
+                "role", "user",
+                "content", userPrompt));
 
         return Map.of(
-                "model",       model.getName(),
-                "messages",    messages,
+                "model", model.getName(),
+                "messages", messages,
                 "temperature", model.effectiveTemperature(),
-                "max_tokens",  model.effectiveMaxTokens()
-        );
+                "max_tokens", model.effectiveMaxTokens());
     }
 
     private String extractContent(Map<?, ?> body, AiModel model) {
@@ -105,7 +128,7 @@ public class AiReviewService {
         if (!(choicesRaw instanceof List<?> choices) || choices.isEmpty()) {
             throw new AiCallException(
                     "AI response from " + model.getProvider()
-                    + " contained no choices — full body: " + summariseBody(body));
+                            + " contained no choices — full body: " + summariseBody(body));
         }
 
         Object firstRaw = choices.get(0);
@@ -129,9 +152,9 @@ public class AiReviewService {
         return text;
     }
 
-
     private String summarise(String body) {
-        if (body == null) return "(empty)";
+        if (body == null)
+            return "(empty)";
         return body.length() > 300 ? body.substring(0, 300) + "..." : body;
     }
 
@@ -140,9 +163,13 @@ public class AiReviewService {
         return s.length() > 300 ? s.substring(0, 300) + "..." : s;
     }
 
-
     public static class AiCallException extends RuntimeException {
-        public AiCallException(String message) { super(message); }
-        public AiCallException(String message, Throwable cause) { super(message, cause); }
+        public AiCallException(String message) {
+            super(message);
+        }
+
+        public AiCallException(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
 }

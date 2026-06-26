@@ -55,8 +55,8 @@ public class FileReviewDtos {
     @AllArgsConstructor
     public static class ErrorItem {
         private Long id;
-        private int line;
-        private int column;
+        private int lineNumber;
+        private int columnNumber;
         private Severity severity;
         private String message;
         private String ruleId;

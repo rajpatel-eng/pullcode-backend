@@ -73,8 +73,8 @@ public class ReviewPdfReportService {
                     if (file.getErrors() != null && !file.getErrors().isEmpty()) {
                         for (ErrorItem err : file.getErrors()) {
                             String fresh = err.isFresh() ? "[NEW] " : "[CARRIED] ";
-                            String loc   = err.getLine() > 0 ? "L" + err.getLine() : "";
-                            if (err.getColumn() > 0) loc += ":C" + err.getColumn();
+                            String loc   = err.getLineNumber() > 0 ? "L" + err.getLineNumber() : "";
+                            if (err.getColumnNumber() > 0) loc += ":C" + err.getColumnNumber();
                             String line = String.format("    %s[%s] %s %s",
                                     fresh,
                                     err.getSeverity() != null ? err.getSeverity().name() : "?",

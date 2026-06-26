@@ -55,7 +55,7 @@ public class AuthController {
     }
     @GetMapping("/oauth2-error")
     public ResponseEntity<?> oauthError() {
-        return ResponseEntity.ok("Errpr in oauth");
+        return ResponseEntity.ok("Error in oauth");
     }
 
     @PostMapping("/forgot-password/send-otp")

@@ -76,7 +76,7 @@ public class GitPrCommentService {
                 if (file.getErrors() == null) continue;
                 Map<Integer, Integer> lineToPos = posMap.getOrDefault(file.getFilePath(), Map.of());
                 for (ErrorItem err : file.getErrors()) {
-                    Integer pos = (err.getLine() > 0) ? lineToPos.get(err.getLine()) : null;
+                    Integer pos = (err.getLineNumber() > 0) ? lineToPos.get(err.getLineNumber()) : null;
                     if (pos != null) {
                         comments.add(Map.of(
                             "path",     file.getFilePath(),
@@ -205,7 +205,7 @@ public class GitPrCommentService {
                 if (file.getErrors() == null) continue;
                 Map<Integer, Integer> lineToPos = posMap.getOrDefault(file.getFilePath(), Map.of());
                 for (ErrorItem err : file.getErrors()) {
-                    if (err.getLine() > 0 && lineToPos.containsKey(err.getLine())) {
+                    if (err.getLineNumber() > 0 && lineToPos.containsKey(err.getLineNumber())) {
                         try {
                             Map<String, Object> position = new LinkedHashMap<>();
                             position.put("base_sha",  mr.baseSha());
@@ -213,7 +213,7 @@ public class GitPrCommentService {
                             position.put("head_sha",  mr.headSha());
                             position.put("position_type", "text");
                             position.put("new_path",  file.getFilePath());
-                            position.put("new_line",  err.getLine());
+                            position.put("new_line",  err.getLineNumber());
 
                             restClient.post()
                                     .uri(base + "/merge_requests/" + mr.iid() + "/discussions")
@@ -228,7 +228,7 @@ public class GitPrCommentService {
                             pinned++;
                         } catch (RestClientResponseException ex) {
                             // GitLab rejects positions outside the visible diff — fall back gracefully
-                            log.debug("GitPrCommentService: GitLab inline rejected for {}:{} — {}", file.getFilePath(), err.getLine(), ex.getStatusCode());
+                            log.debug("GitPrCommentService: GitLab inline rejected for {}:{} — {}", file.getFilePath(), err.getLineNumber(), ex.getStatusCode());
                             unmapped.add(err);
                         }
                     } else {
@@ -342,12 +342,12 @@ public class GitPrCommentService {
                 if (file.getErrors() == null) continue;
                 Map<Integer, Integer> lineToPos = posMap.getOrDefault(file.getFilePath(), Map.of());
                 for (ErrorItem err : file.getErrors()) {
-                    if (err.getLine() > 0 && lineToPos.containsKey(err.getLine())) {
+                    if (err.getLineNumber() > 0 && lineToPos.containsKey(err.getLineNumber())) {
                         try {
                             Map<String, Object> payload = new LinkedHashMap<>();
                             payload.put("content", Map.of("raw", formatInlineComment(err)));
                             payload.put("inline",  Map.of(
-                                "to",   err.getLine(),
+                                "to",   err.getLineNumber(),
                                 "path", file.getFilePath()
                             ));
 
@@ -360,7 +360,7 @@ public class GitPrCommentService {
                                     .toBodilessEntity();
                             pinned++;
                         } catch (RestClientResponseException ex) {
-                            log.debug("GitPrCommentService: Bitbucket inline rejected for {}:{} — {}", file.getFilePath(), err.getLine(), ex.getStatusCode());
+                            log.debug("GitPrCommentService: Bitbucket inline rejected for {}:{} — {}", file.getFilePath(), err.getLineNumber(), ex.getStatusCode());
                             unmapped.add(err);
                         }
                     } else {
@@ -517,7 +517,7 @@ public class GitPrCommentService {
         for (ErrorItem err : unmapped) {
             String sev = err.getSeverity() != null ? err.getSeverity().name() : "UNKNOWN";
             sb.append("- ").append(severityBadge(sev)).append(" **").append(sev).append("**");
-            if (err.getLine() > 0) sb.append(" `L").append(err.getLine()).append("`");
+            if (err.getLineNumber() > 0) sb.append(" `L").append(err.getLineNumber()).append("`");
             sb.append(" — ").append(err.getMessage()).append("\n");
             if (err.getSuggestion() != null && !err.getSuggestion().isBlank()) {
                 sb.append("  > 💡 ").append(err.getSuggestion()).append("\n");

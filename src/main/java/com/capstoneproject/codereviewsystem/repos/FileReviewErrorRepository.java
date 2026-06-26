@@ -19,10 +19,10 @@ public interface FileReviewErrorRepository extends JpaRepository<FileReviewError
 
     long countByFileReview(FileReview fileReview);
 
-    List<FileReviewError> findByCommitHistoryOrderBySeverityAscLineAsc(
+    List<FileReviewError> findByCommitHistoryOrderBySeverityAscLineNumberAsc(
             CommitHistory commitHistory);
 
-    List<FileReviewError> findByProjectCommitOrderBySeverityAscLineAsc(
+    List<FileReviewError> findByProjectCommitOrderBySeverityAscLineNumberAsc(
             ProjectCommit projectCommit);
 
     @Query("""

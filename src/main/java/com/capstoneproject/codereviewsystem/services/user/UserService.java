@@ -28,8 +28,8 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final CommitHistoryRepository commitHistoryRepository;   // webhook commits
-    private final ProjectCommitRepository projectCommitRepository;   // ZIP_UI + CLI commits
+    private final CommitHistoryRepository commitHistoryRepository;
+    private final ProjectCommitRepository projectCommitRepository;
     private final PasswordEncoder passwordEncoder;
     private final OtpService otpService;
     private final EmailService emailService;

@@ -8,6 +8,7 @@ import com.capstoneproject.codereviewsystem.kafka.KafkaTopics;
 import com.capstoneproject.codereviewsystem.kafka.events.ReviewReadyEvent;
 import com.capstoneproject.codereviewsystem.kafka.producer.EmailNotificationProducer;
 import com.capstoneproject.codereviewsystem.repos.AiModelRepository;
+import com.capstoneproject.codereviewsystem.repos.CodeRepositoryRepository;
 import com.capstoneproject.codereviewsystem.repos.CommitHistoryRepository;
 import com.capstoneproject.codereviewsystem.repos.ProjectCommitRepository;
 import com.capstoneproject.codereviewsystem.repos.UserRepository;
@@ -33,30 +34,27 @@ import java.util.*;
 @RequiredArgsConstructor
 public class AiReviewConsumer {
 
-    private final AiModelRepository         aiModelRepository;
-    private final CommitHistoryRepository   commitHistoryRepo;
-    private final ProjectCommitRepository   projectCommitRepo;
-    private final EncryptionService         encryptionService;
-    private final AiReviewService           aiReviewService;
-    private final AiReviewPromptBuilder     promptBuilder;
-    private final AiReviewResultParser      resultParser;
-    private final FileReviewService         fileReviewService;
-    private final TempReviewStager          tempStager;
-    private final SseEmitterRegistry        sseRegistry;
+    private final AiModelRepository aiModelRepository;
+    private final CommitHistoryRepository commitHistoryRepo;
+    private final ProjectCommitRepository projectCommitRepo;
+    private final EncryptionService encryptionService;
+    private final AiReviewService aiReviewService;
+    private final AiReviewPromptBuilder promptBuilder;
+    private final AiReviewResultParser resultParser;
+    private final FileReviewService fileReviewService;
+    private final TempReviewStager tempStager;
+    private final SseEmitterRegistry sseRegistry;
     private final RedisTemplate<String, String> redisTemplate;
-    private final ReviewPdfReportService    pdfReportService;
+    private final ReviewPdfReportService pdfReportService;
     private final EmailNotificationProducer emailProducer;
-    private final GitPrCommentService       gitPrCommentService;
-    private final UserRepository            userRepository;
+    private final GitPrCommentService gitPrCommentService;
+    private final UserRepository userRepository;
+    private final CodeRepositoryRepository codeRepositoryRepository;
 
     @Value("${app.storage.local.base-path:uploads}")
     private String basePath;
 
-    @KafkaListener(
-            topics = KafkaTopics.REVIEW_READY,
-            groupId = "ai-review-group",
-            containerFactory = "readyKafkaListenerContainerFactory"
-    )
+    @KafkaListener(topics = KafkaTopics.REVIEW_READY, groupId = "ai-review-group", containerFactory = "readyKafkaListenerContainerFactory")
     public void consume(ReviewReadyEvent event) {
         String key = "ai:" + event.getEventId();
         if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
@@ -90,14 +88,14 @@ public class AiReviewConsumer {
 
             fileReviewService.saveReviewResults(
                     commitHistory, projectCommit,
-                    null,          
-                    Map.of(),       
-                    List.of(),     
+                    null,
+                    Map.of(),
+                    List.of(),
                     mergeAllFiles(event),
                     hashSnapshot);
 
             tempStager.cleanup(event.getTempStagingPath());
-            redisTemplate.opsForValue().set(key,"processed",Duration.ofDays(7));
+            redisTemplate.opsForValue().set(key, "processed", Duration.ofDays(7));
             return;
         }
 
@@ -198,12 +196,11 @@ public class AiReviewConsumer {
                         + event.getChangedFiles().size() + " changed files")
                 .source(event.getSource().name())
                 .metadata(Map.of(
-                        "freshIssues",    freshCount,
-                        "changedFiles",   event.getChangedFiles().size(),
+                        "freshIssues", freshCount,
+                        "changedFiles", event.getChangedFiles().size(),
                         "unchangedFiles", event.getUnchangedFiles().size(),
-                        "modelName",      model.getName(),
-                        "latencyMs",      latencyMs
-                ))
+                        "modelName", model.getName(),
+                        "latencyMs", latencyMs))
                 .build());
 
         sendReviewReportEmail(event, commitHistory, projectCommit, model, freshCount, freshErrors);
@@ -276,7 +273,7 @@ public class AiReviewConsumer {
                 return;
             }
 
-            String pdfBase64  = pdfReportService.generateBase64Pdf(reviewResponse, user.getName());
+            String pdfBase64 = pdfReportService.generateBase64Pdf(reviewResponse, user.getName());
             String pdfFileName = "review-" + commitId.substring(0, Math.min(7, commitId.length())) + ".pdf";
 
             emailProducer.sendReviewReport(user.getEmail(), user.getName(),
@@ -290,14 +287,18 @@ public class AiReviewConsumer {
 
     private void postPrComment(ReviewReadyEvent event, CommitHistory commitHistory) {
         try {
-            com.capstoneproject.codereviewsystem.entity.CodeRepository repo =
-                    commitHistory.getRepository();
-            if (repo == null || repo.getAccessToken() == null) return;
+            Long repoId = commitHistory.getRepository().getId(); 
+
+            com.capstoneproject.codereviewsystem.entity.CodeRepository repo = codeRepositoryRepository.findById(repoId)
+                    .orElse(null);
+
+            if (repo == null || repo.getAccessToken() == null)
+                return;
 
             String decryptedToken = encryptionService.decrypt(repo.getAccessToken());
 
-            com.capstoneproject.codereviewsystem.dtos.FileReviewDtos.CommitReviewResponse review =
-                    fileReviewService.getCommitHistoryReview(commitHistory.getId(), event.getUserId());
+            com.capstoneproject.codereviewsystem.dtos.FileReviewDtos.CommitReviewResponse review = fileReviewService
+                    .getCommitHistoryReview(commitHistory.getId(), event.getUserId());
 
             gitPrCommentService.postReviewComment(repo, decryptedToken,
                     commitHistory.getCommitId(), review);

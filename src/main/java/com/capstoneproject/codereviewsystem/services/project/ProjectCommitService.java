@@ -129,7 +129,7 @@ public class ProjectCommitService {
 
     public Page<CommitHistoryItem> getHistory(Long projectId, Long userId, int page, int size) {
         User user = getUser(userId);
-        getProject(projectId, user); // ownership check
+        getProject(projectId, user); 
 
         return commitRepository
                 .findByZipProjectIdOrderByCommittedAtDesc(projectId, PageRequest.of(page, size))
